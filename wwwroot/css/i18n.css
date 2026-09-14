@@ -1,0 +1,102 @@
+/* Shared RTL foundations, loaded by the FIU Global language runtime. */
+
+html[dir="rtl"],
+html[dir="rtl"] body {
+    direction: rtl;
+}
+
+html[dir="rtl"] body,
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select,
+html[dir="rtl"] option,
+html[dir="rtl"] .table th,
+html[dir="rtl"] .table td {
+    text-align: right;
+}
+
+html[dir="rtl"] .language-selector {
+    left: 30px;
+    right: auto;
+}
+
+html[dir="rtl"] .language-dropdown {
+    left: 0;
+    right: auto;
+}
+
+html[dir="rtl"] .password-toggle,
+html[dir="rtl"] .profile-close {
+    left: 9px;
+    right: auto;
+}
+
+html[dir="rtl"] .google-auth-btn i {
+    left: auto;
+    right: 18px;
+}
+
+html[dir="rtl"] .user-dropdown-content,
+html[dir="rtl"] .notification-dropdown-content,
+html[dir="rtl"] .modal-content,
+html[dir="rtl"] .profile-dialog,
+html[dir="rtl"] .chat-contacts,
+html[dir="rtl"] .chat-conversation {
+    text-align: right;
+}
+
+/* The portal sidebar moves to the logical inline end without changing routes. */
+html[dir="rtl"] .portal-shell > .user-sidebar {
+    order: 2;
+}
+
+html[dir="rtl"] .portal-shell > main {
+    order: 1;
+}
+
+html[dir="rtl"] .announcements-nav.prev {
+    left: auto;
+    right: 12px;
+}
+
+html[dir="rtl"] .announcements-nav.next {
+    left: 12px;
+    right: auto;
+}
+
+/* Admin polish uses physical offsets, so mirror its desktop shell explicitly. */
+html[dir="rtl"] .admin-portal .sidebar {
+    left: auto;
+    right: 0;
+}
+
+html[dir="rtl"] .admin-portal .main-content {
+    margin-left: 0 !important;
+    margin-right: 276px !important;
+}
+
+html[dir="rtl"] .admin-portal.sidebar-collapsed .main-content {
+    margin-right: 92px !important;
+}
+
+html[dir="rtl"] .admin-portal .admin-topbar {
+    left: 32px;
+    right: 308px;
+}
+
+@media (max-width: 860px) {
+    html[dir="rtl"] .language-selector {
+        left: 16px;
+        right: auto;
+    }
+
+    html[dir="rtl"] .admin-portal .main-content,
+    html[dir="rtl"] .admin-portal.sidebar-collapsed .main-content {
+        margin-right: 0 !important;
+    }
+
+    html[dir="rtl"] .admin-portal .admin-topbar {
+        left: 14px;
+        right: 14px;
+    }
+}

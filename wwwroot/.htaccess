@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Keep cPanel/AutoSSL challenge files on LiteSpeed.
+RewriteCond %{REQUEST_URI} ^/\.well-known(?:/|$) [NC]
+RewriteRule ^ - [L]
+
+# Never expose deployment secrets or debug symbols from the document root.
+RewriteRule ^\.env(?:\..*)?$ - [F,L,NC]
+RewriteRule ^(?:appsettings(?:\..*)?\.json|.*\.pdb)$ - [F,L,NC]
+
+# The domain document root is this wwwroot directory. Kestrel runs from the
+# parent publish directory and listens only on localhost:5099.
+RewriteRule ^(.*)$ http://127.0.0.1:5099/$1 [P,L]

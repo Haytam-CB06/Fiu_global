@@ -1,0 +1,3016 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <base href="/">
+
+    <title data-i18n="admin.documentTitle">FIU GLOBAL PORTAL - ADMINISTRATION</title>
+    <link rel="icon" type="image/png" href="/img/fiu9-mark2.png?v=1">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/portal-theme.css?v=2">
+    <link rel="stylesheet" href="css/admin-polish.css?v=19">
+    <link rel="stylesheet" href="css/i18n.css?v=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+        }
+
+        
+
+        body {
+
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+            background: #f5f5f5;
+
+            color: #333;
+
+        }
+
+        
+
+        .admin-container {
+
+            display: flex;
+
+            min-height: 100vh;
+
+        }
+
+        
+
+        .sidebar {
+
+            width: 280px;
+
+            background: #142850;
+
+            color: white;
+
+            padding: 20px 0;
+
+            position: fixed;
+
+            height: 100vh;
+
+            display: flex;
+
+            flex-direction: column;
+
+            justify-content: space-between;
+
+        }
+
+        
+
+        .sidebar-header {
+
+            padding: 0 20px 20px;
+
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+
+            margin-bottom: 20px;
+
+        }
+
+        
+
+        .sidebar-header h2 {
+
+            font-size: 24px;
+
+            font-weight: 600;
+
+            margin-bottom: 5px;
+
+        }
+
+        
+
+        .nav-menu {
+
+            list-style: none;
+
+            flex: 1;
+
+            overflow-y: auto;
+
+        }
+
+        
+
+        .nav-item {
+
+            margin-bottom: 5px;
+
+        }
+
+        
+
+        .nav-link {
+
+            display: flex;
+
+            align-items: center;
+
+            padding: 12px 20px;
+
+            color: white;
+
+            text-decoration: none;
+
+            transition: all 0.3s ease;
+
+            border-left: 3px solid transparent;
+
+        }
+
+        
+
+        .nav-link:hover, .nav-link.active {
+
+            background: rgba(255,255,255,0.15);
+
+            border-left-color: #fff;
+
+        }
+
+        
+
+        .nav-link i {
+
+            margin-right: 12px;
+
+            width: 20px;
+
+            text-align: center;
+
+        }
+
+        
+
+                 .main-content {
+
+             flex: 1;
+
+             margin-left: 280px;
+
+             padding: 20px;
+
+             min-height: 100vh;
+
+         }
+
+        
+
+                 .sidebar-admin-section {
+
+             padding: 20px;
+
+             border-top: 1px solid rgba(255,255,255,0.1);
+
+             background: #142850;
+
+             margin-top: auto;
+
+             position: relative;
+
+             z-index: 10;
+
+         }
+
+        
+
+        .admin-info {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+
+            margin-bottom: 15px;
+
+        }
+
+        
+
+        .admin-avatar {
+
+            width: 40px;
+
+            height: 40px;
+
+            background: rgba(255,255,255,0.2);
+
+            border-radius: 50%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            color: white;
+
+            font-weight: 600;
+
+        }
+
+        
+
+        .admin-details h3 {
+
+            color: white;
+
+            font-size: 16px;
+
+            margin: 0 0 5px 0;
+
+        }
+
+        
+
+        .admin-details p {
+
+            color: rgba(255,255,255,0.7);
+
+            font-size: 12px;
+
+            margin: 0;
+
+        }
+
+        
+
+                 .logout-btn {
+
+             background: #e74c3c;
+
+             color: white;
+
+             border: none;
+
+             padding: 10px 16px;
+
+             border-radius: 4px;
+
+             cursor: pointer;
+
+             font-size: 14px;
+
+             transition: background-color 0.3s ease;
+
+             width: 100%;
+
+             position: relative;
+
+             z-index: 15;
+
+         }
+
+        
+
+        .logout-btn:hover {
+
+            background: #c0392b;
+
+        }
+
+        
+
+        .user-panel-btn {
+
+            background-color: #27ae60;
+
+            color: white;
+
+            border: none;
+
+            padding: 10px 15px;
+
+            border-radius: 5px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+
+            margin-top: 10px;
+
+            width: 100%;
+
+            transition: background-color 0.3s;
+
+        }
+
+
+
+        .user-panel-btn:hover {
+
+            background-color: #229954;
+
+        }
+
+        
+
+        .dashboard-grid {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+
+            gap: 20px;
+
+            margin-bottom: 30px;
+
+        }
+
+        
+
+        .card {
+
+            background: #f9f9f9;
+
+            border-radius: 8px;
+
+            padding: 20px;
+
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+        }
+
+        
+
+        .card:hover {
+
+            transform: translateY(-5px);
+
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+
+        }
+
+        
+
+        .card-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 20px;
+
+        }
+
+        
+
+        .card-title {
+
+            font-size: 18px;
+
+            font-weight: 600;
+
+            color: #000000;
+
+        }
+
+        
+
+        .card-icon {
+
+            width: 50px;
+
+            height: 50px;
+
+            border-radius: 8px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 24px;
+
+            color: white;
+
+            background: #142850;
+
+        }
+
+        
+
+        .stat-number {
+
+            font-size: 32px;
+
+            font-weight: 700;
+
+            color: #000000;
+
+            margin-bottom: 5px;
+
+        }
+
+        
+
+        .stat-label {
+
+            font-size: 14px;
+
+            color: #666;
+
+        }
+
+        
+
+        .content-section {
+
+            background: white;
+
+            border-radius: 8px;
+
+            padding: 30px;
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+            margin-bottom: 30px;
+
+        }
+
+        
+
+        .section-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 20px;
+
+        }
+
+        
+
+        .section-title {
+
+            font-size: 20px;
+
+            font-weight: 600;
+
+            color: #000000;
+
+        }
+
+        
+
+        .btn {
+
+            background: #142850;
+
+            color: white;
+
+            border: none;
+
+            padding: 10px 20px;
+
+            border-radius: 4px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            transition: background-color 0.3s ease;
+
+        }
+
+        
+
+        .btn:hover {
+
+            background: #142850;
+
+        }
+
+        
+
+        .table {
+
+            width: 100%;
+
+            border-collapse: collapse;
+
+            margin-top: 15px;
+
+        }
+
+        
+
+        .table th,
+
+        .table td {
+
+            padding: 12px;
+
+            text-align: left;
+
+            border-bottom: 1px solid #eee;
+
+        }
+
+        
+
+        .table th {
+
+            background: #f8f9fa;
+
+            font-weight: 600;
+
+            color: #333;
+
+        }
+
+        
+
+        .hidden {
+            display: none;
+        }
+
+        #recent-logins-container {
+            display: none !important;
+        }
+        
+
+        
+
+        
+
+        /* System Health styles */
+
+        .health-grid {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+
+            gap: 20px;
+
+            margin-bottom: 30px;
+
+        }
+
+        
+
+        .health-card {
+
+            background: #f9f9f9;
+
+            border-radius: 8px;
+
+            padding: 20px;
+
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+
+        }
+
+        
+
+        .health-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+        }
+
+        
+
+        .health-header h3 {
+
+            font-size: 16px;
+
+            font-weight: 600;
+
+            color: #000000;
+
+            margin: 0;
+
+        }
+
+        
+
+        .health-indicator {
+
+            padding: 4px 12px;
+
+            border-radius: 20px;
+
+            font-size: 12px;
+
+            font-weight: 500;
+
+            text-transform: uppercase;
+
+        }
+
+        
+
+        .health-indicator.healthy {
+
+            background: #d4edda;
+
+            color: #155724;
+
+        }
+
+        
+
+        .health-indicator.warning {
+
+            background: #fff3cd;
+
+            color: #856404;
+
+        }
+
+        
+
+        .health-indicator.error {
+
+            background: #f8d7da;
+
+            color: #721c24;
+
+        }
+
+        
+
+        #recent-logins-container h3 {
+
+            font-size: 18px;
+
+            font-weight: 600;
+
+            color: #000000;
+
+            margin-bottom: 15px;
+
+        }
+
+        
+
+        #recent-logins-list {
+
+            background: #f9f9f9;
+
+            border-radius: 8px;
+
+            padding: 15px;
+
+        }
+
+        
+
+        .login-item {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            padding: 8px 0;
+
+            border-bottom: 1px solid #eee;
+
+        }
+
+        
+
+        .login-item:last-child {
+
+            border-bottom: none;
+
+        }
+
+        
+
+        .login-username {
+
+            font-weight: 500;
+
+            color: #000000;
+
+        }
+
+        
+
+        .login-time {
+
+            font-size: 12px;
+
+            color: #666;
+
+        }
+
+
+
+        /* Modal Styles */
+
+        .modal {
+
+            position: fixed;
+
+            z-index: 1000;
+
+            left: 0;
+
+            top: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+            background-color: rgba(0,0,0,0.5);
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+
+
+        .modal.hidden {
+
+            display: none;
+
+        }
+
+
+
+        .modal-content {
+
+            background-color: white;
+
+            margin: auto;
+
+            padding: 0;
+
+            border-radius: 8px;
+
+            width: 90%;
+
+            max-width: 600px;
+
+            max-height: 90vh;
+
+            overflow-y: auto;
+
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+
+        }
+
+
+
+        .modal-header {
+
+            padding: 20px;
+
+            border-bottom: 1px solid #eee;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+        }
+
+
+
+        .modal-header h3 {
+
+            margin: 0;
+
+            color: #333;
+
+        }
+
+
+
+        .close {
+
+            color: #aaa;
+
+            font-size: 28px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            line-height: 1;
+
+        }
+
+
+
+        .close:hover {
+
+            color: #000;
+
+        }
+
+
+
+        .modal-body {
+
+            padding: 20px;
+
+        }
+
+
+
+        .form-group {
+
+            margin-bottom: 20px;
+
+        }
+
+
+
+        .form-group label {
+
+            display: block;
+
+            margin-bottom: 5px;
+
+            font-weight: 500;
+
+            color: #333;
+
+        }
+
+
+
+        .form-group input,
+
+        .form-group textarea,
+
+        .form-group select {
+
+            width: 100%;
+
+            padding: 10px;
+
+            border: 1px solid #ddd;
+
+            border-radius: 4px;
+
+            font-size: 14px;
+
+            font-family: inherit;
+
+        }
+
+
+
+        .form-group textarea {
+
+            resize: vertical;
+
+            min-height: 120px;
+
+        }
+
+
+
+        .form-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+            justify-content: flex-end;
+
+            margin-top: 20px;
+
+        }
+
+
+
+        .btn-secondary {
+
+            background: #6c757d;
+
+        }
+
+
+
+        .btn-secondary:hover {
+
+            background: #5a6268;
+
+        }
+
+
+
+        .btn-danger {
+
+            background: #dc3545;
+
+        }
+
+
+
+        .btn-danger:hover {
+
+            background: #c82333;
+
+        }
+
+
+
+        /* Holiday Management Styles */
+
+        .year-selector {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+
+            margin-bottom: 20px;
+
+            padding: 15px;
+
+            background: #f8f9fa;
+
+            border-radius: 8px;
+
+        }
+
+
+
+        .year-selector label {
+
+            font-weight: 500;
+
+            margin: 0;
+
+        }
+
+
+
+        .year-selector select {
+
+            padding: 8px 12px;
+
+            border: 1px solid #ddd;
+
+            border-radius: 4px;
+
+            font-size: 14px;
+
+        }
+
+
+
+        .holiday-card {
+
+            background: white;
+
+            border-radius: 8px;
+
+            padding: 20px;
+
+            margin-bottom: 15px;
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+            border-left: 4px solid #28a745;
+
+        }
+
+
+
+        .holiday-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 10px;
+
+        }
+
+
+
+        .holiday-date {
+
+            font-size: 18px;
+
+            font-weight: 600;
+
+            color: #333;
+
+            margin: 0;
+
+        }
+
+
+
+        .holiday-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+        }
+
+
+
+        .holiday-meta {
+
+            display: flex;
+
+            gap: 15px;
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-bottom: 10px;
+
+        }
+
+
+
+        .holiday-content h4 {
+
+            margin: 0 0 5px 0;
+
+            color: #333;
+
+        }
+
+
+
+        .holiday-content p {
+
+            margin: 0;
+
+            color: #666;
+
+            font-size: 14px;
+
+        }
+
+
+
+        .format-info {
+
+            background: #f8f9fa;
+
+            border: 1px solid #e9ecef;
+
+            border-radius: 4px;
+
+            padding: 15px;
+
+            margin-top: 10px;
+
+        }
+
+
+
+        .format-info pre {
+
+            background: #fff;
+
+            border: 1px solid #ddd;
+
+            border-radius: 4px;
+
+            padding: 10px;
+
+            margin: 10px 0 0 0;
+
+            font-size: 12px;
+
+            overflow-x: auto;
+
+        }
+
+
+
+        .header-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+        }
+
+
+
+        /* Announcements Styles */
+
+        .announcement-card {
+
+            background: white;
+
+            border-radius: 8px;
+
+            padding: 20px;
+
+            margin-bottom: 15px;
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+            border-left: 4px solid #142850;
+
+        }
+
+
+
+        .announcement-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 10px;
+
+        }
+
+
+
+        .announcement-title {
+
+            font-size: 18px;
+
+            font-weight: 600;
+
+            color: #333;
+
+            margin: 0;
+
+        }
+
+
+
+        .announcement-meta {
+
+            display: flex;
+
+            gap: 15px;
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-bottom: 10px;
+
+        }
+
+
+
+        .announcement-priority {
+
+            padding: 2px 8px;
+
+            border-radius: 12px;
+
+            font-size: 11px;
+
+            font-weight: 500;
+
+            text-transform: uppercase;
+
+        }
+
+
+
+        .priority-high {
+
+            background: #ffebee;
+
+            color: #c62828;
+
+        }
+
+
+
+        .priority-medium {
+
+            background: #fff3e0;
+
+            color: #ef6c00;
+
+        }
+
+
+
+        .priority-low {
+
+            background: #e8f5e8;
+
+            color: #2e7d32;
+
+        }
+
+
+
+        .announcement-content {
+
+            color: #555;
+
+            line-height: 1.6;
+
+            margin-bottom: 15px;
+
+        }
+
+
+
+        .announcement-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+        }
+
+
+
+        .announcement-status {
+
+            padding: 2px 8px;
+
+            border-radius: 12px;
+
+            font-size: 11px;
+
+            font-weight: 500;
+
+            text-transform: uppercase;
+
+        }
+
+
+
+        .status-active {
+
+            background: #e8f5e8;
+
+            color: #2e7d32;
+
+        }
+
+
+
+        .status-inactive {
+
+            background: #ffebee;
+
+            color: #c62828;
+
+        }
+
+
+
+        /* Dining Menu Styles */
+
+        .form-row {
+
+            display: flex;
+
+            gap: 15px;
+
+        }
+
+
+
+        .form-row .form-group {
+
+            flex: 1;
+
+        }
+
+
+
+        .dining-menu-card {
+
+            background: white;
+
+            border-radius: 8px;
+
+            padding: 20px;
+
+            margin-bottom: 15px;
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+            border-left: 4px solid #142850;
+
+        }
+
+
+
+        .dining-menu-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 15px;
+
+        }
+
+
+
+        .dining-menu-date {
+
+            font-size: 18px;
+
+            font-weight: 600;
+
+            color: #333;
+
+            margin: 0;
+
+        }
+
+
+
+        .dining-menu-meta {
+
+            display: flex;
+
+            gap: 15px;
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-bottom: 15px;
+
+        }
+
+
+
+        .dining-menu-section {
+
+            margin-bottom: 20px;
+
+        }
+
+
+
+        .dining-menu-section-title {
+
+            font-size: 16px;
+
+            font-weight: 600;
+
+            color: #142850;
+
+            margin-bottom: 10px;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+
+
+        .dining-menu-section-title i {
+
+            color: #ff6b35;
+
+        }
+
+
+
+        .dining-menu-content {
+
+            background: #f8f9fa;
+
+            padding: 15px;
+
+            border-radius: 6px;
+
+            margin-bottom: 10px;
+
+            color: #555;
+
+            line-height: 1.6;
+
+        }
+
+
+
+        .dining-menu-timing {
+
+            display: flex;
+
+            gap: 20px;
+
+            font-size: 13px;
+
+            color: #666;
+
+        }
+
+
+
+        .dining-menu-timing span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 5px;
+
+        }
+
+
+
+        .dining-menu-timing i {
+
+            color: #142850;
+
+        }
+
+
+
+        .dining-menu-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+            margin-top: 15px;
+
+        }
+
+
+
+        /* Recurring menu checkbox – align properly */
+
+        .checkbox-label {
+
+            display: flex !important;
+
+            align-items: center !important;
+
+            gap: 10px;
+
+            cursor: pointer;
+
+            user-select: none;
+
+            font-weight: 500;
+
+        }
+
+
+
+        .checkbox-label input[type="checkbox"] {
+
+            position: absolute;
+
+            opacity: 0;
+
+            height: 0;
+
+            width: 0;
+
+            pointer-events: none;
+
+        }
+
+
+
+        .checkmark {
+
+            height: 20px;
+
+            width: 20px;
+
+            background-color: #eee;
+
+            border: 2px solid #ddd;
+
+            border-radius: 4px;
+
+            display: inline-block;
+
+            position: relative;
+
+            flex-shrink: 0;
+
+        }
+
+
+
+        .checkbox-label:hover input ~ .checkmark {
+
+            background-color: #e2e2e2;
+
+        }
+
+
+
+        .checkbox-label input:checked ~ .checkmark {
+
+            background-color: #28a745;
+
+            border-color: #28a745;
+
+        }
+
+
+
+        .checkmark:after {
+
+            content: "";
+
+            position: absolute;
+
+            display: none;
+
+        }
+
+
+
+        .checkbox-label input:checked ~ .checkmark:after {
+
+            display: block;
+
+        }
+
+
+
+        .checkbox-label .checkmark:after {
+
+            left: 6px;
+
+            top: 2px;
+
+            width: 5px;
+
+            height: 10px;
+
+            border: solid #fff;
+
+            border-width: 0 2px 2px 0;
+
+            transform: rotate(45deg);
+
+        }
+
+        /*
+
+         * Responsive mobile adjustments
+
+         * Ensures sidebar stacks, main-content is full width, and all content is scrollable on mobile
+
+         */
+
+        @media (max-width: 600px) {
+
+            html, body {
+
+                width: 100% !important;
+
+                min-width: 0 !important;
+
+                max-width: 100% !important;
+
+                height: auto !important;
+
+                min-height: 100vh !important;
+
+                overflow-x: hidden !important;
+
+                overflow-y: auto !important;
+
+            }
+
+            .admin-container {
+
+                flex-direction: column !important;
+
+                min-height: 0 !important;
+
+                height: auto !important;
+
+            }
+
+            .sidebar {
+
+                width: 100% !important;
+
+                min-width: 0 !important;
+
+                max-width: 100% !important;
+
+                position: static !important;
+
+                height: auto !important;
+
+                border-radius: 0 !important;
+
+                z-index: 100 !important;
+
+                margin: 0 !important;
+
+                padding: 10px 0 !important;
+
+            }
+
+            .main-content {
+
+                margin-left: 0 !important;
+
+                width: 100% !important;
+
+                min-width: 0 !important;
+
+                max-width: 100% !important;
+
+                padding: 8px !important;
+
+                min-height: auto !important;
+
+                height: auto !important;
+
+                box-sizing: border-box !important;
+
+            }
+
+            .dashboard-grid, .health-grid {
+
+                grid-template-columns: 1fr !important;
+
+                gap: 10px !important;
+
+            }
+
+            .card, .content-section, .section-content {
+
+                width: 100% !important;
+
+                min-width: 0 !important;
+
+                max-width: 100% !important;
+
+                box-sizing: border-box !important;
+
+                margin: 0 0 10px 0 !important;
+
+                padding: 10px 4px !important;
+
+            }
+
+            .modal-content {
+
+                max-width: 98vw !important;
+
+                padding: 8px !important;
+
+            }
+
+            .form-group, .form-row, .form-actions {
+
+                width: 100% !important;
+
+                flex-direction: column !important;
+
+                gap: 8px !important;
+
+                min-width: 0 !important;
+
+                box-sizing: border-box !important;
+
+            }
+
+            .btn, .btn-primary, .btn-secondary, .btn-danger, .logout-btn, .user-panel-btn {
+
+                width: 100% !important;
+
+                min-width: 0 !important;
+
+                box-sizing: border-box !important;
+
+                margin-bottom: 8px !important;
+
+            }
+
+            .section-header, .card-header {
+
+                flex-direction: column !important;
+
+                align-items: flex-start !important;
+
+                gap: 8px !important;
+
+            }
+
+            .sidebar-header, .sidebar-admin-section {
+
+                align-items: flex-start !important;
+
+                text-align: left !important;
+
+            }
+
+        }
+
+    </style>
+    <link rel="stylesheet" href="css/design-fixes.css?v=25">
+
+    <link rel="stylesheet" href="css/portal-theme.css?v=1">
+    <link rel="stylesheet" href="css/admin-polish.css?v=19">
+    <link rel="stylesheet" href="css/design-fixes.css?v=25">
+</head>
+
+<body class="admin-portal">
+    <div class="admin-container">
+
+        <!-- Sidebar -->
+
+        <div class="sidebar">
+
+            <div class="sidebar-header">
+
+                <div class="logo sidebar-brand-logo" style="display: flex; justify-content: center; margin-bottom: 18px;">
+
+                    <span class="sidebar-brand-mark">
+                        <img class="sidebar-brand-full" src="/img/fiu9-mark.png" alt="Final International University">
+                        <img class="sidebar-brand-icon" src="/img/fiu9-mark2.png" alt="" aria-hidden="true">
+                    </span>
+
+                </div>
+
+                <h2>FIU Global Portal</h2>
+
+                <p data-i18n="admin.panel">Admin Panel</p>
+
+            </div>
+
+            <ul class="nav-menu">
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard" class="nav-link active" data-section="dashboard">
+
+                        <i class="fas fa-tachometer-alt"></i>
+
+                        <span data-i18n="admin.nav.dashboard">Dashboard</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item" id="admin-management-nav" style="display: none;">
+
+                    <a href="/admin_dashboard/admins" class="nav-link" data-section="admins">
+
+                        <i class="fas fa-users-cog"></i>
+
+                        <span data-i18n="admin.nav.adminManagement">Admin Management</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard/users" class="nav-link" data-section="users">
+
+                        <i class="fas fa-user-graduate"></i>
+
+                        <span data-i18n="admin.nav.users">Users</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard/manage-platforms" class="nav-link" data-section="manage-platforms">
+
+                        <i class="fas fa-layer-group"></i>
+
+                        <span data-i18n="admin.nav.platforms">Manage Platforms</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item" id="faculty-directory-nav">
+
+                    <a href="/admin_dashboard/faculties" class="nav-link" data-section="faculties">
+
+                        <i class="fas fa-sitemap"></i>
+
+                        <span data-i18n="admin.nav.faculties">Faculties &amp; Departments</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard/announcements" class="nav-link" data-section="announcements">
+
+                        <i class="fas fa-bullhorn"></i>
+
+                        <span data-i18n="admin.nav.announcements">Announcements</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard/dining-menu" class="nav-link" data-section="dining-menu">
+
+                        <i class="fas fa-utensils"></i>
+
+                        <span data-i18n="admin.nav.diningMenu">Dining Menu</span>
+
+                    </a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a href="/admin_dashboard/holidays" class="nav-link" data-section="holidays">
+
+                        <i class="fas fa-calendar-alt"></i>
+
+                        <span data-i18n="admin.nav.holidays">Holidays &amp; Days Off</span>
+
+                    </a>
+
+                </li>
+
+            </ul>
+
+            
+
+                         <!-- Sidebar Admin Info and Logout -->
+
+             <div class="sidebar-admin-section">
+
+                 <div class="admin-info">
+
+                     <div class="admin-avatar" id="admin-avatar"></div>
+
+                     <div class="admin-details">
+
+                         <h3 id="admin-name"></h3>
+
+                         <p id="admin-role"></p>
+
+                     </div>
+
+                 </div>
+
+                                 <button class="logout-btn">
+
+                    <i class="fas fa-sign-out-alt"></i> <span data-i18n="admin.shell.logout">Logout</span>
+
+                </button>
+
+             </div>
+
+        </div>
+
+
+
+        <!-- Main Content -->
+
+        <div class="main-content">
+
+
+
+            <!-- Dashboard Section -->
+
+            <div id="dashboard-section" class="section-content">
+
+                <div class="dashboard-grid">
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <div class="card-title" data-i18n="admin.dashboard.totalUsers">Total Users</div>
+
+                            <div class="card-icon">
+
+                                <i class="fas fa-users"></i>
+
+                            </div>
+
+                        </div>
+
+                            <div class="stat-number" id="total-users">0</div>
+
+                        <div class="stat-label" data-i18n="admin.dashboard.registeredUsers">Registered users</div>
+
+                    </div>
+
+                    
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <div class="card-title" data-i18n="admin.dashboard.activeAdmins">Active Admins</div>
+
+                            <div class="card-icon">
+
+                                <i class="fas fa-user-shield"></i>
+
+                            </div>
+
+                        </div>
+
+                            <div class="stat-number" id="active-admins">0</div>
+
+                        <div class="stat-label" data-i18n="admin.dashboard.administrators">Administrators</div>
+
+                    </div>
+
+                    
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <div class="card-title" data-i18n="admin.dashboard.platforms">Platforms</div>
+
+                            <div class="card-icon">
+
+                                <i class="fas fa-globe"></i>
+
+                            </div>
+
+                        </div>
+
+                            <div class="stat-number" id="total-platforms">0</div>
+
+                        <div class="stat-label" data-i18n="admin.dashboard.connectedPlatforms">Connected platforms</div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Admin Management Section -->
+
+            <div id="admins-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header">
+
+                        <h2 class="section-title" data-i18n="admin.adminManagement">Admin Management</h2>
+
+                        <button class="btn" id="add-admin-btn">
+
+                            <i class="fas fa-plus"></i> <span data-i18n="admin.addAdmin">Add Admin</span>
+
+                        </button>
+
+                    </div>
+
+                    <div id="admins-table-container">
+
+                        <table class="table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th data-i18n="admin.table.id">ID</th>
+
+                                    <th data-i18n="admin.table.username">Username</th>
+
+                                    <th data-i18n="admin.table.email">Email</th>
+
+                                    <th data-i18n="admin.table.role">Role</th>
+
+                                    <th data-i18n="admin.table.presence">Presence</th>
+
+                                    <th data-i18n="admin.table.created">Created</th>
+
+                                    <th data-i18n="admin.table.actions">Actions</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="admins-table-body">
+
+                                <!-- Admin data will be loaded here -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Add/Edit Admin Modal -->
+
+            <div id="admin-manage-modal" class="modal hidden">
+
+                <div class="modal-content">
+
+                    <div class="modal-header">
+
+                        <h3 id="admin-modal-title">Add Admin</h3>
+
+                        <span class="close" id="close-admin-modal">&times;</span>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <form id="admin-manage-form">
+
+                            <input type="hidden" id="admin-id" name="id" />
+
+                            <div class="form-group" id="admin-username-group">
+
+                                <label for="admin-username">Username</label>
+
+                                <input type="text" id="admin-username" name="username" required />
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label for="admin-email">Email</label>
+
+                                <input type="email" id="admin-email" name="email" required />
+
+                            </div>
+
+                            <div class="form-group" id="admin-password-group">
+
+                                <label for="admin-password">Password</label>
+
+                                <input type="password" id="admin-password" name="password" required />
+
+                            </div>
+
+                            <div class="form-group" id="admin-new-password-group" style="display:none;">
+
+                                <label for="admin-new-password">New Password (optional)</label>
+
+                                <input type="password" id="admin-new-password" name="new_password" />
+
+                            </div>
+
+                            <div class="form-actions">
+
+                                <button type="button" class="btn btn-secondary" id="cancel-admin-modal">Cancel</button>
+
+                                <button type="submit" class="btn">Save</button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Create User Section -->
+
+            <div id="create-user-section" class="section-content hidden">
+
+                <div class="content-section enhanced-panel">
+
+                    <div class="section-header">
+
+                        <div>
+
+                            <h2 class="section-title">Create User</h2>
+
+                            <p class="section-subtitle">Add an account and assign any available role.</p>
+
+                        </div>
+
+                    </div>
+
+                    <form id="create-user-form" class="enhanced-form create-user-form">
+
+                        <div class="create-user-fields">
+
+                            <div class="form-group">
+
+                                <label for="create-user-username">Username</label>
+
+                                <input type="text" id="create-user-username" name="username" placeholder="Username" required autocomplete="off">
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label for="create-user-email">Email</label>
+
+                                <input type="email" id="create-user-email" name="email" placeholder="name@final.edu.tr" required autocomplete="off">
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label for="create-user-role">Role</label>
+
+                                <select id="create-user-role" name="role" required>
+
+                                    <option value="student">Student</option>
+
+                                    <option value="instructor">Instructor</option>
+
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label for="create-user-password">Temporary Password</label>
+
+                                <input type="password" id="create-user-password" name="password" placeholder="Temporary password" required autocomplete="new-password">
+
+                            </div>
+
+                        </div>
+
+                        <div class="form-actions create-user-actions">
+
+                            <button type="submit" class="btn"><i class="fas fa-user-plus"></i> Create User</button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+                <div id="create-user-directory" class="content-section enhanced-panel">
+
+                    <div class="section-header">
+
+                        <div>
+
+                            <h2 class="section-title">User Directory</h2>
+
+                            <p class="section-subtitle">Search and review every student, instructor, and administrator account.</p>
+
+                        </div>
+
+                        <span id="create-user-directory-count" class="directory-count">0 users</span>
+
+                    </div>
+
+                    <div class="smart-filter-row create-user-filter-row">
+
+                        <label class="smart-filter-field">
+
+                            <i class="fas fa-search" aria-hidden="true"></i>
+
+                            <input type="search" id="create-user-search" placeholder="Search by username, email, role, or ID" autocomplete="off">
+
+                        </label>
+
+                    </div>
+
+                    <div id="create-user-directory-list" class="create-user-directory-list"></div>
+
+                    <div id="create-user-directory-pagination" class="pagination-controls"></div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Users Section -->
+
+            <div id="users-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header">
+
+                        <h2 class="section-title">Users</h2>
+
+                    </div>
+
+                    <div id="users-table-container">
+
+                        <table class="table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>ID</th>
+
+                                    <th>Username</th>
+
+                                    <th>Email</th>
+
+                                    <th>Created</th>
+
+                                    <th>Admin Status</th>
+
+                                    <th>Actions</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="users-table-body">
+
+                                <!-- Users data will be loaded here -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Platforms Section -->
+
+            <div id="platforms-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header">
+
+                        <h2 class="section-title">Platforms</h2>
+
+                    </div>
+
+                    <div id="platforms-table-container">
+
+                        <table class="table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>ID</th>
+
+                                    <th>Name</th>
+
+                                    <th>Description</th>
+
+                                    <th>URL</th>
+
+                                    <th>Created</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="platforms-table-body">
+
+                                <!-- Platforms data will be loaded here -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id="faculties-section" class="section-content hidden">
+
+                <div class="content-section enhanced-panel faculty-directory-panel">
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title">Faculties &amp; Departments</h2>
+                            <p class="section-subtitle">Build the academic directory used by every account profile.</p>
+                        </div>
+                    </div>
+                    <div class="faculty-directory-forms">
+                        <form id="faculty-create-form" class="enhanced-form faculty-directory-form">
+                            <h3>Add faculty</h3>
+                            <label>Faculty name<input name="name" maxlength="180" required autocomplete="off" placeholder="e.g. Faculty of Engineering"></label>
+                            <button class="btn" type="submit"><i class="fas fa-plus"></i> Add faculty</button>
+                        </form>
+                        <form id="department-create-form" class="enhanced-form faculty-directory-form">
+                            <h3>Add department</h3>
+                            <label>Faculty<select id="department-create-faculty" name="faculty_id" required></select></label>
+                            <label>Department name<input name="name" maxlength="180" required autocomplete="off" placeholder="e.g. Computer Engineering"></label>
+                            <button class="btn" type="submit"><i class="fas fa-plus"></i> Add department</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="content-section enhanced-panel faculty-directory-panel">
+                    <div class="section-header"><div><h2 class="section-title">Configured directory</h2><p class="section-subtitle">Deactivate entries to retain historical account data without offering them in profiles.</p></div></div>
+                    <div class="faculty-directory-toolbar">
+                        <label class="faculty-directory-search"><span class="sr-only">Search faculty or department</span><i class="fas fa-search" aria-hidden="true"></i><input id="faculty-directory-search" type="search" autocomplete="off" placeholder="Search faculty or department…"></label>
+                        <label class="faculty-directory-status-filter"><span class="sr-only">Filter directory status</span><select id="faculty-directory-status-filter"><option value="all">All entries</option><option value="active" selected>Active only</option><option value="inactive">Inactive only</option></select></label>
+                        <span id="faculty-directory-count" class="directory-count" aria-live="polite">0 faculties</span>
+                    </div>
+                    <div id="faculty-directory-feedback" aria-live="polite"></div>
+                    <div id="faculty-directory-list" class="faculty-directory-list"><p class="muted">Loading directory…</p></div>
+                    <div id="faculty-directory-pagination" class="pagination-controls" aria-label="Faculty directory pages"></div>
+                </div>
+            </div>
+
+
+
+            <!-- Announcements Section -->
+
+            <div id="announcements-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header">
+
+                        <h2 class="section-title">Announcements</h2>
+
+                        <button class="btn" id="add-announcement-btn">
+
+                            <i class="fas fa-plus"></i> Add Announcement
+
+                        </button>
+
+                    </div>
+
+                    <div id="announcements-container">
+
+                        <div id="announcements-list">
+
+                            <!-- Announcements will be loaded here -->
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Dining Menu Section -->
+
+            <div id="dining-menu-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header dining-section-header">
+
+                        <h2 class="section-title">Dining Menu</h2>
+
+                        <div class="dining-header-actions">
+                            <button class="btn" id="add-dining-menu-btn">
+
+                                <i class="fas fa-plus"></i> Add Menu
+
+                            </button>
+                        </div>
+
+                    </div>
+
+                    <div id="dining-menu-container">
+
+                        <div id="dining-menu-list">
+
+                            <!-- Dining menus will be loaded here -->
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Holidays & Days Off Section -->
+
+            <div id="holidays-section" class="section-content hidden">
+
+                <div class="content-section">
+
+                    <div class="section-header">
+
+                        <h2 class="section-title">Holidays & Days Off</h2>
+
+                                            <div class="header-actions">
+
+                        <button class="btn" id="add-holiday-btn">
+
+                            <i class="fas fa-plus"></i> Add Holiday
+
+                        </button>
+
+                        <button class="btn btn-secondary" id="upload-holiday-btn">
+
+                            <i class="fas fa-upload"></i> Upload File
+
+                        </button>
+
+                    </div>
+
+                    </div>
+
+                    
+
+                                    <!-- Year Selection -->
+
+                <div class="year-selector">
+
+                    <label for="holiday-year">Year:</label>
+
+                    <select id="holiday-year" disabled>
+
+                        <!-- Year options will be populated by JavaScript -->
+
+                    </select>
+
+                    <button class="btn btn-secondary" id="export-holidays-btn">
+
+                        <i class="fas fa-file-csv"></i> Export CSV
+
+                    </button>
+
+                    <button class="btn btn-secondary" id="export-holidays-xlsx-btn">
+
+                        <i class="fas fa-file-excel"></i> Export Excel
+
+                    </button>
+
+                    <button class="btn btn-secondary" id="download-template-btn">
+
+                        <i class="fas fa-file-csv"></i> CSV Template
+
+                    </button>
+
+                    <button class="btn btn-secondary" id="download-template-xlsx-btn">
+
+                        <i class="fas fa-file-excel"></i> Excel Template
+
+                    </button>
+
+                    <button class="btn btn-danger" id="delete-all-holidays-btn">
+
+                        <i class="fas fa-trash"></i> Delete All
+
+                    </button>
+
+                    </div>
+
+                    
+
+                    <div style="margin-bottom: 20px; padding: 15px; background-color: #e8f5e8; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
+
+                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Saturdays and Sundays are automatically excluded by default and do not need to be added as holidays.
+
+                    </div>
+
+                    <div id="holidays-container">
+
+                        <div id="holidays-list">
+
+                            <!-- Holidays will be loaded here -->
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Add/Edit Announcement Modal -->
+
+    <div id="announcement-modal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3 id="modal-title">Add Announcement</h3>
+
+                <span class="close" id="close-announcement-modal">&times;</span>
+
+            </div>
+
+            <div class="modal-body">
+
+                <form id="announcement-form">
+
+                    <div class="form-group">
+
+                        <label for="announcement-title">Title</label>
+
+                        <input type="text" id="announcement-title" name="title" required>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="announcement-content">Content</label>
+
+                        <textarea id="announcement-content" name="content" rows="6" required></textarea>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="announcement-priority">Priority</label>
+
+                        <select id="announcement-priority" name="priority">
+
+                            <option value="low">Low</option>
+
+                            <option value="medium" selected>Medium</option>
+
+                            <option value="high">High</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="announcement-target">Target Audience</label>
+
+                        <select id="announcement-target" name="target_audience">
+
+                            <option value="all" selected>All</option>
+
+                            <option value="students">Students</option>
+
+                            <option value="instructors">Instructors</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group" id="announcement-status-group" style="display: none;">
+
+                        <label for="announcement-status">Status</label>
+
+                        <select id="announcement-status" name="is_active">
+
+                            <option value="1">Active</option>
+
+                            <option value="0">Inactive</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button type="button" class="btn btn-secondary" id="cancel-announcement-modal">Cancel</button>
+
+                        <button type="submit" class="btn">Save Announcement</button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Add/Edit Dining Menu Modal -->
+
+    <div id="dining-menu-modal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3 id="dining-menu-modal-title">Add Dining Menu</h3>
+
+                <span class="close" id="close-dining-menu-modal">&times;</span>
+
+            </div>
+
+            <div class="modal-body">
+
+                <form id="dining-menu-form">
+
+                    <div class="form-group">
+
+                        <label for="dining-menu-date">Date</label>
+
+                        <input type="date" id="dining-menu-date" name="date" required>
+
+                        <small style="color: #856404; margin-top: 5px; display: block;">
+
+                            <i class="fas fa-info-circle"></i> Weekends (Saturday/Sunday) are automatically excluded and cannot be selected for dining menus.
+
+                        </small>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="dining-menu-breakfast">Breakfast Menu</label>
+
+                        <textarea id="dining-menu-breakfast" name="breakfast_menu" rows="4" placeholder="Enter breakfast menu items..." required></textarea>
+
+                    </div>
+
+                    <div class="form-row">
+
+                        <div class="form-group">
+
+                            <label for="dining-menu-breakfast-start">Breakfast Start Time</label>
+
+                            <input type="time" id="dining-menu-breakfast-start" name="breakfast_start_time" value="07:00">
+
+                        </div>
+
+                        <div class="form-group">
+
+                            <label for="dining-menu-breakfast-end">Breakfast End Time</label>
+
+                            <input type="time" id="dining-menu-breakfast-end" name="breakfast_end_time" value="09:00">
+
+                        </div>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="dining-menu-lunch">Lunch Menu</label>
+
+                        <textarea id="dining-menu-lunch" name="lunch_menu" rows="4" placeholder="Enter lunch menu items..." required></textarea>
+
+                    </div>
+
+                    <div class="form-row">
+
+                        <div class="form-group">
+
+                            <label for="dining-menu-lunch-start">Lunch Start Time</label>
+
+                            <input type="time" id="dining-menu-lunch-start" name="lunch_start_time" value="12:00">
+
+                        </div>
+
+                                            <div class="form-group">
+
+                        <label for="dining-menu-lunch-end">Lunch End Time</label>
+
+                        <input type="time" id="dining-menu-lunch-end" name="lunch_end_time" value="14:00">
+
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="checkbox-label">
+
+                        <input type="checkbox" id="dining-menu-recurring" name="is_recurring">
+
+                        <span class="checkmark"></span>
+
+                        Make this menu recurring for future dates
+
+                    </label>
+
+                    <small style="color: #856404; margin-top: 5px; display: block;">
+
+                        <i class="fas fa-info-circle"></i> When enabled, this menu will automatically be applied to all future occurrences of the same day of the week (e.g., if you create a Monday menu, it will apply to all future Mondays).
+
+                    </small>
+
+                </div>
+
+                <div class="form-group" id="recurring-options" style="display: none;">
+
+                    <label for="dining-menu-weeks-ahead">Number of weeks ahead to create menus</label>
+
+                    <select id="dining-menu-weeks-ahead" name="weeks_ahead">
+
+                        <option value="4">4 weeks (1 month)</option>
+
+                        <option value="8">8 weeks (2 months)</option>
+
+                        <option value="12" selected>12 weeks (3 months)</option>
+
+                        <option value="16">16 weeks (4 months)</option>
+
+                        <option value="20">20 weeks (5 months)</option>
+
+                        <option value="24">24 weeks (6 months)</option>
+
+                    </select>
+
+                    <small style="color: #856404; margin-top: 5px; display: block;">
+
+                        <i class="fas fa-info-circle"></i> This will create menus for the specified number of weeks ahead, skipping holidays and weekends.
+
+                    </small>
+
+                </div>
+
+                <div class="form-actions">
+
+                    <button type="button" class="btn btn-secondary" id="cancel-dining-menu-modal">Cancel</button>
+
+                    <button type="submit" class="btn">Save Menu</button>
+
+                </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Add/Edit Holiday Modal -->
+
+    <div id="holiday-modal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3 id="holiday-modal-title">Add Holiday</h3>
+
+                <span class="close" id="close-holiday-modal">&times;</span>
+
+            </div>
+
+            <div class="modal-body">
+
+                <form id="holiday-form">
+
+                    <div class="form-group">
+
+                        <label for="holiday-date">Date</label>
+
+                        <input type="date" id="holiday-date" name="date" required>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="holiday-name">Holiday Name</label>
+
+                        <input type="text" id="holiday-name" name="holiday_name" placeholder="Enter holiday name..." required>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="holiday-type">Type</label>
+
+                        <select id="holiday-type" name="type">
+
+                            <option value="holiday">Holiday</option>
+
+                            <option value="weekend">Weekend</option>
+
+                            <option value="closure">Closure</option>
+
+                            <option value="custom">Custom</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="holiday-description">Description</label>
+
+                        <textarea id="holiday-description" name="description" rows="3" placeholder="Optional description..."></textarea>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>
+
+                            <input type="checkbox" id="holiday-recurring" name="is_recurring">
+
+                            Is Recurring Holiday
+
+                        </label>
+
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="hidden" name="is_active" value="false"><input type="checkbox" id="holiday-active" name="is_active" value="true" checked> Holiday is active</label>
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button type="button" class="btn btn-secondary" id="cancel-holiday-modal">Cancel</button>
+
+                        <button type="submit" class="btn">Save Holiday</button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Upload Holiday File Modal -->
+
+    <div id="upload-holiday-modal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3>Upload Holiday Schedule</h3>
+
+                <span class="close" id="close-upload-holiday-modal">&times;</span>
+
+            </div>
+
+            <div class="modal-body">
+
+                <form id="upload-holiday-form" enctype="multipart/form-data">
+
+                    <div class="form-group">
+
+                        <label for="upload-year">Year</label>
+
+                        <select id="upload-year" name="year" required readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+
+                            <!-- Year will be populated by JavaScript -->
+
+                        </select>
+
+                        <!-- Fallback hidden input with current year -->
+
+                        <input type="hidden" name="year_fallback" value="" id="year-fallback-input">
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="upload-file">File</label>
+
+                        <input type="file" id="upload-file" name="file" accept=".csv,.xlsx">
+
+                        <small>Supported formats: CSV and Excel (.xlsx). Max size: 10MB. Selecting a file loads it into the editable table below.</small>
+
+                        <div class="alert alert-warning" style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;">
+
+                            <strong>⚠️ Note:</strong> Uploading a new file will overwrite all existing holidays for the selected year.
+
+                        </div>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <div class="holiday-editor-heading"><div><label>Holiday rows</label><small>Edit the table directly or load a CSV/Excel file.</small></div><button type="button" class="btn btn-secondary btn-sm" id="holiday-import-add-row"><i class="fas fa-plus"></i> Add row</button></div>
+
+                        <div class="holiday-import-table-wrap table-responsive"><table class="table holiday-import-table"><thead><tr><th>Date (MM/DD/YYYY)</th><th>Day of week</th><th>Holiday name</th><th aria-label="Remove row"></th></tr></thead><tbody id="holiday-import-table-body"></tbody></table></div>
+                        <div id="holiday-import-errors" class="holiday-import-errors" aria-live="polite"></div>
+
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button type="button" class="btn btn-secondary" id="cancel-upload-holiday-modal">Cancel</button>
+
+                        <button type="submit" class="btn"><i class="fas fa-upload"></i> Validate &amp; import</button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+        </div>
+
+    </div>
+
+
+
+    
+
+    <!-- Config / env-style settings (must load before admin.js) -->
+
+    <!-- Shared runtime is loaded before the admin scripts so the language picker
+         updates this page without changing the authenticated session. -->
+    <script src="js/language.js?v=14"></script>
+    <script src="js/admin-i18n.js?v=1"></script>
+    <script src="js/portal-i18n-catalog.js?v=1"></script>
+    <script src="js/config.js?v=1"></script>
+
+
+
+    <script src="js/admin.js?v=11"></script>
+    <script src="js/admin-auth-security.js?v=1"></script>
+    <script src="js/admin-enhancements.js?v=16"></script>
+    <script src="js/faculty-directory.js?v=6"></script>
+    <script src="js/account-management.js?v=19"></script>
+    <script src="js/admin-shell.js?v=9"></script>
+    <script src="js/scroll-animations.js?v=1"></script>
+</body>
+</html>

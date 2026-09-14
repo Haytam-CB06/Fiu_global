@@ -1,0 +1,28 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# .NET build output
+bin/
+obj/
+
+# Local runtime output
+app-run.log
+app-run.err
+publish/
+output/
+deploy/
+deploy-linux-x64/
+deploy-linux-x64-full/
+
+# Generated report renderings and reports
+docx_render*/
+*.docx
+Fiu_global_project_report.txt
+
+# Local browser/tool state
+.playwright-cli/
+
+# Runtime-uploaded user content
+wwwroot/uploads/

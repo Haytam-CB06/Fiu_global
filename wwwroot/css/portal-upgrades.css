@@ -1,0 +1,833 @@
+/*
+ * FIU Global Portal refinements
+ *
+ * This layer deliberately loads after the legacy portal styles. It keeps the
+ * existing campus palette while making account controls, personalized content,
+ * profile fields, and delivery states easier to use.
+ */
+
+body.user-portal .header-right {
+    margin-left: auto;
+    position: relative;
+}
+
+body.user-portal .super-admin-entry,
+body.user-portal .user-dropdown-btn {
+    align-items: center;
+    gap: 9px;
+    border: 1px solid rgba(20, 40, 80, .14);
+    background: rgba(255, 255, 255, .86);
+    color: #101a2f;
+    box-shadow: 0 10px 24px rgba(15, 30, 56, .10);
+}
+
+body.user-portal .super-admin-entry {
+    display: inline-flex;
+    min-height: 46px;
+    padding: 0 15px;
+    text-decoration: none;
+}
+
+body.user-portal .super-admin-entry[hidden] {
+    display: none !important;
+}
+
+body.user-portal .user-dropdown {
+    display: block;
+    width: auto;
+}
+
+body.user-portal .user-dropdown-btn {
+    display: inline-flex !important;
+    min-height: 48px;
+    max-width: min(300px, 58vw);
+    padding: 5px 11px 5px 6px;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+}
+
+body.user-portal .user-dropdown-btn:hover,
+body.user-portal .user-dropdown-btn:focus-visible,
+body.user-portal .super-admin-entry:hover,
+body.user-portal .super-admin-entry:focus-visible {
+    border-color: rgba(34, 87, 157, .42);
+    background: #fff;
+    color: #142850;
+}
+
+body.user-portal .user-dropdown-btn:focus-visible,
+body.user-portal .super-admin-entry:focus-visible,
+body.user-portal .password-visibility-toggle:focus-visible {
+    outline: 3px solid rgba(32, 101, 190, .30);
+    outline-offset: 2px;
+}
+
+body.user-portal .header-profile-avatar {
+    display: block;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    object-fit: cover;
+    border: 2px solid rgba(27, 73, 134, .16);
+    border-radius: 50%;
+    background: #f4f7fb;
+}
+
+body.user-portal #header-profile-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.user-portal .user-dropdown-btn > .fa-chevron-down {
+    font-size: .75rem;
+    transition: transform .18s ease;
+}
+
+body.user-portal .user-dropdown.show .user-dropdown-btn > .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Prevent the legacy hover rule from opening the menu; the explicit account
+ * button owns open/close state so keyboard and pointer behavior agree. */
+body.user-portal .user-dropdown:hover .user-dropdown-content {
+    display: none !important;
+}
+
+body.user-portal .user-dropdown.show .user-dropdown-content {
+    display: grid !important;
+}
+
+body.user-portal .user-dropdown-content {
+    display: none !important;
+    position: absolute !important;
+    z-index: 100;
+    top: calc(100% + 10px) !important;
+    right: 0 !important;
+    width: min(292px, calc(100vw - 28px));
+    min-width: 248px;
+    margin: 0;
+    padding: 8px !important;
+    gap: 3px !important;
+    border: 1px solid rgba(20, 40, 80, .12) !important;
+    border-radius: 18px !important;
+    background: rgba(255, 255, 255, .98) !important;
+    box-shadow: 0 22px 48px rgba(10, 27, 56, .18) !important;
+    backdrop-filter: blur(18px);
+}
+
+body.user-portal .user-dropdown-content > button,
+body.user-portal .user-dropdown-content > a,
+body.user-portal .user-dropdown-content .language-btn,
+body.user-portal .user-dropdown-content .theme-btn {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 42px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding: 9px 11px !important;
+    border: 0 !important;
+    border-radius: 11px !important;
+    background: transparent !important;
+    color: #1c2c47 !important;
+    box-shadow: none !important;
+    font: inherit;
+    font-weight: 750;
+    text-align: left;
+    text-decoration: none;
+}
+
+body.user-portal .user-dropdown-content > button:hover,
+body.user-portal .user-dropdown-content > a:hover,
+body.user-portal .user-dropdown-content .language-btn:hover,
+body.user-portal .user-dropdown-content .theme-btn:hover,
+body.user-portal .user-dropdown-content > button:focus-visible,
+body.user-portal .user-dropdown-content > a:focus-visible,
+body.user-portal .user-dropdown-content .language-btn:focus-visible,
+body.user-portal .user-dropdown-content .theme-btn:focus-visible {
+    background: #edf4fd !important;
+    color: #123d72 !important;
+    outline: none;
+}
+
+body.user-portal .user-dropdown-content .language-switcher {
+    position: relative;
+}
+
+body.user-portal .user-dropdown-content .language-btn::before {
+    content: "\f0ac";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+body.user-portal .user-dropdown-content .theme-btn::before {
+    content: "\f186";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+body.user-portal .user-dropdown-content .btn-logout {
+    margin-top: 3px !important;
+    background: #fff4f4 !important;
+    color: #ae2935 !important;
+}
+
+body.user-portal .user-dropdown-content .btn-logout:hover,
+body.user-portal .user-dropdown-content .btn-logout:focus-visible {
+    background: #ffe7e8 !important;
+    color: #8f1e2a !important;
+}
+
+body.dark-mode.user-portal .super-admin-entry,
+body.dark-mode.user-portal .user-dropdown-btn {
+    border-color: rgba(255, 255, 255, .16);
+    background: rgba(255, 255, 255, .08);
+    color: #eef4ff;
+}
+
+body.dark-mode.user-portal .user-dropdown-content {
+    border-color: rgba(255, 255, 255, .13) !important;
+    background: rgba(15, 34, 63, .98) !important;
+}
+
+body.dark-mode.user-portal .user-dropdown-content > button,
+body.dark-mode.user-portal .user-dropdown-content > a,
+body.dark-mode.user-portal .user-dropdown-content .language-btn,
+body.dark-mode.user-portal .user-dropdown-content .theme-btn {
+    color: #edf4ff !important;
+}
+
+body.dark-mode.user-portal .user-dropdown-content > button:hover,
+body.dark-mode.user-portal .user-dropdown-content > a:hover,
+body.dark-mode.user-portal .user-dropdown-content .language-btn:hover,
+body.dark-mode.user-portal .user-dropdown-content .theme-btn:hover {
+    background: rgba(130, 180, 245, .14) !important;
+    color: #fff !important;
+}
+
+/* Personalized dashboard services ---------------------------------------- */
+body.user-portal .most-accessed-platforms {
+    display: grid;
+    gap: 18px;
+    margin: 0 0 22px;
+    padding: clamp(18px, 3vw, 26px);
+    border: 1px solid rgba(24, 74, 139, .15);
+    border-radius: 24px;
+    background: linear-gradient(135deg, #ffffff, #eef6ff);
+    box-shadow: 0 16px 40px rgba(24, 66, 118, .09);
+}
+
+body.user-portal .most-accessed-platforms.hidden {
+    display: none;
+}
+
+body.user-portal .most-accessed-platforms-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+body.user-portal .most-accessed-platforms-heading h2 {
+    margin: 3px 0 4px;
+    color: #132a4d;
+    font-family: Manrope, "Segoe UI", sans-serif;
+    font-size: clamp(1.25rem, 2vw, 1.6rem);
+}
+
+body.user-portal .most-accessed-platforms-heading p {
+    margin: 0;
+    color: #60718b;
+}
+
+body.user-portal .most-accessed-platforms-heading > i {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    border-radius: 14px;
+    background: #dcecff;
+    color: #1c5da8;
+}
+
+body.user-portal .most-accessed-platforms-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+body.user-portal .most-accessed-platform {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid rgba(26, 76, 137, .13);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .86);
+    color: #142850;
+    text-decoration: none;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+body.user-portal .most-accessed-platform:hover,
+body.user-portal .most-accessed-platform:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(31, 98, 180, .38);
+    box-shadow: 0 12px 24px rgba(22, 69, 124, .12);
+    outline: none;
+}
+
+body.user-portal .most-accessed-platform img {
+    display: block;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #f1f5fb;
+}
+
+body.user-portal .most-accessed-platform span {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+body.user-portal .most-accessed-platform strong,
+body.user-portal .most-accessed-platform small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.user-portal .most-accessed-platform small {
+    color: #61728c;
+}
+
+body.user-portal .most-accessed-empty-state {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px dashed rgba(28, 84, 148, .24);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .58);
+    color: #60718b;
+}
+
+body.dark-mode.user-portal .most-accessed-platforms {
+    border-color: rgba(138, 184, 241, .19);
+    background: linear-gradient(135deg, #172c4a, #102642);
+}
+
+body.dark-mode.user-portal .most-accessed-platforms-heading h2,
+body.dark-mode.user-portal .most-accessed-platform {
+    color: #f0f6ff;
+}
+
+body.dark-mode.user-portal .most-accessed-platforms-heading p,
+body.dark-mode.user-portal .most-accessed-platform small {
+    color: #b9c9de;
+}
+
+body.dark-mode.user-portal .most-accessed-platform {
+    border-color: rgba(255, 255, 255, .12);
+    background: rgba(6, 20, 40, .28);
+}
+
+/* Platform identity images ------------------------------------------------ */
+body.user-portal .platform-card-image {
+    display: block;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    object-fit: cover;
+    border: 1px solid rgba(20, 60, 112, .12);
+    border-radius: 14px;
+    background: #f1f5fb;
+}
+
+/* Profile form controls --------------------------------------------------- */
+body.user-portal .profile-page-form select {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    border: 1px solid rgba(22, 61, 111, .20);
+    border-radius: 10px;
+    background: #fff;
+    color: #182b47;
+    font: inherit;
+}
+
+body.user-portal .profile-page-form select:disabled {
+    cursor: not-allowed;
+    opacity: .72;
+}
+
+body.user-portal .password-field {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+body.user-portal .password-field > input {
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 48px;
+}
+
+body.user-portal .password-visibility-toggle {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    display: grid;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    place-items: center;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #47617f;
+    cursor: pointer;
+}
+
+body.user-portal .profile-page-form .password-visibility-toggle {
+    grid-column: auto;
+    justify-self: auto;
+}
+
+body.user-portal .password-visibility-toggle:hover {
+    background: #edf4fd;
+    color: #174f91;
+}
+
+body.dark-mode.user-portal .profile-page-form select {
+    border-color: rgba(255, 255, 255, .18);
+    background: #152943;
+    color: #edf4ff;
+}
+
+body.dark-mode.user-portal .password-visibility-toggle {
+    color: #c1d3ea;
+}
+
+body.dark-mode.user-portal .password-visibility-toggle:hover {
+    background: rgba(135, 184, 244, .15);
+    color: #fff;
+}
+
+/* Chat delivery states ---------------------------------------------------- */
+body.user-portal .chat-message-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    margin-top: 5px;
+    font-size: .72rem;
+}
+
+body.user-portal .chat-message .chat-message-meta {
+    margin: 5px 0 0;
+    font-size: .72rem;
+}
+
+body.user-portal .chat-message .chat-message-meta time {
+    margin: 0;
+    font-size: inherit;
+}
+
+body.user-portal .chat-message.assistant .chat-message-meta {
+    justify-content: flex-start;
+}
+
+body.user-portal .chat-delivery-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+}
+
+body.user-portal .chat-message .chat-delivery-status {
+    display: inline-flex;
+    margin: 0;
+    opacity: 1;
+}
+
+body.user-portal .chat-delivery-status.is-seen {
+    color: #2573bc;
+}
+
+body.user-portal .chat-delivery-status.is-received {
+    color: #57728f;
+}
+
+@media (max-width: 900px) {
+    body.user-portal .header-right,
+    body.user-portal .user-dropdown {
+        width: auto !important;
+    }
+
+    body.user-portal .user-dropdown-content {
+        width: min(292px, calc(100vw - 28px)) !important;
+        min-width: min(248px, calc(100vw - 28px));
+    }
+}
+
+@media (max-width: 620px) {
+    body.user-portal .header-right {
+        flex: 1 1 auto;
+        justify-content: flex-end;
+    }
+
+    body.user-portal .super-admin-entry > span {
+        display: none;
+    }
+
+    body.user-portal .super-admin-entry {
+        width: 46px;
+        min-width: 46px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    body.user-portal .user-dropdown-btn {
+        max-width: min(230px, calc(100vw - 130px));
+    }
+
+    body.user-portal .most-accessed-platforms {
+        border-radius: 19px;
+    }
+
+    body.user-portal .most-accessed-platforms-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dashboard focus cards and compact portal controls ---------------------- */
+body.user-portal .dashboard-focus-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 16px 0 22px;
+}
+
+body.user-portal .dashboard-focus-card {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid rgba(22, 61, 111, .13);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .84);
+    box-shadow: 0 14px 30px rgba(23, 48, 86, .08);
+}
+
+body.user-portal .dashboard-focus-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+body.user-portal .dashboard-focus-card-heading h2 {
+    margin: 2px 0 0;
+    font-size: 1.15rem;
+}
+
+body.user-portal .dashboard-focus-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    place-items: center;
+    border-radius: 13px;
+    background: #e8f1ff;
+    color: #174f91;
+}
+
+body.user-portal .dashboard-focus-card-content {
+    min-height: 74px;
+    margin: 16px 0 12px;
+    color: #425c7e;
+}
+
+body.user-portal .dashboard-focus-card-content > strong {
+    display: block;
+    margin-bottom: 9px;
+    color: #163d70;
+}
+
+body.user-portal .dashboard-focus-empty {
+    margin: 0;
+    color: #71809a;
+}
+
+body.user-portal .dashboard-focus-meals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+body.user-portal .dashboard-focus-meals span,
+body.user-portal .dashboard-focus-announcement {
+    display: block;
+    min-width: 0;
+    padding: 10px 11px;
+    border-radius: 12px;
+    background: #f3f7fd;
+    color: #213a5c;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.user-portal .dashboard-focus-meals span {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+body.user-portal .dashboard-focus-meals small,
+body.user-portal .dashboard-focus-announcement small {
+    display: block;
+    margin-bottom: 4px;
+    color: #71809a;
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+body.user-portal .dashboard-focus-announcement-list {
+    display: grid;
+    gap: 8px;
+}
+
+body.user-portal .dashboard-focus-announcement strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.user-portal .dashboard-focus-announcement small {
+    margin: 4px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .78rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+body.user-portal .dashboard-focus-count {
+    display: block;
+    margin-top: 8px;
+    color: #71809a;
+}
+
+body.user-portal .dashboard-focus-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #174f91;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+body.user-portal .dashboard-focus-link:hover { color: #0b376d; text-decoration: underline; }
+
+body.user-portal .user-dropdown-content {
+    width: min(224px, calc(100vw - 28px)) !important;
+    min-width: 210px !important;
+    padding: 6px !important;
+    gap: 2px !important;
+}
+
+body.user-portal .user-dropdown-content > button,
+body.user-portal .user-dropdown-content > a,
+body.user-portal .user-dropdown-content .language-btn {
+    min-height: 35px !important;
+    padding: 7px 9px !important;
+    gap: 7px !important;
+    font-size: .82rem !important;
+}
+
+body.user-portal .custom-notification {
+    background: var(--portal-toast-bg) !important;
+    color: var(--portal-toast-text) !important;
+    border-color: var(--portal-toast-border) !important;
+}
+
+body.user-portal {
+    --portal-toast-bg: #d1ecf1;
+    --portal-toast-text: #0c5460;
+    --portal-toast-border: #bee5eb;
+}
+
+body.user-portal .custom-notification.success { --portal-toast-bg: #d4edda; --portal-toast-text: #155724; --portal-toast-border: #c3e6cb; }
+body.user-portal .custom-notification.error { --portal-toast-bg: #f8d7da; --portal-toast-text: #721c24; --portal-toast-border: #f5c6cb; }
+body.user-portal .custom-notification.warning { --portal-toast-bg: #fff3cd; --portal-toast-text: #856404; --portal-toast-border: #ffeaa7; }
+
+body.user-portal .chat-contact {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+body.user-portal .chat-contact-copy { min-width: 0; }
+body.user-portal .chat-contact-preview { color: #71809a; font-size: 11px; font-weight: 500; text-transform: none; }
+body.user-portal .chat-contact-meta { display: grid; justify-items: end; gap: 5px; min-width: 30px; }
+body.user-portal .chat-contact-time { color: #8592a7; font-size: 10px; white-space: nowrap; }
+body.user-portal .chat-unread-badge { display: inline-grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 999px; background: #1d70d6; color: #fff; font-size: 10px; font-weight: 900; }
+body.user-portal .chat-contact.has-unread strong { color: #123f78; }
+
+body.dark-mode.user-portal .dashboard-focus-card { border-color: rgba(255,255,255,.12); background: rgba(15, 31, 53, .84); }
+body.dark-mode.user-portal .dashboard-focus-card-heading h2,
+body.dark-mode.user-portal .dashboard-focus-card-content > strong { color: #fff !important; background: transparent !important; }
+body.dark-mode.user-portal .dashboard-focus-icon { background: rgba(116, 170, 244, .18); color: #d8e9ff; }
+body.dark-mode.user-portal .dashboard-focus-card-content,
+body.dark-mode.user-portal .dashboard-focus-empty,
+body.dark-mode.user-portal .dashboard-focus-count { color: #b9c9de; }
+body.dark-mode.user-portal .dashboard-focus-meals span,
+body.dark-mode.user-portal .dashboard-focus-announcement { background: rgba(255,255,255,.06); color: #eef4ff; }
+body.dark-mode.user-portal .dashboard-focus-meals small,
+body.dark-mode.user-portal .dashboard-focus-announcement small { color: #b9c9de; }
+body.dark-mode.user-portal .dashboard-focus-link { color: #d9eaff; }
+body.dark-mode.user-portal .dashboard-focus-link:hover { color: #fff; }
+body.dark-mode.user-portal .user-dropdown-content .theme-btn,
+body.dark-mode.user-portal .user-dropdown-content #dark-mode-btn { background: #223a5f !important; border-color: rgba(164, 199, 242, .32) !important; color: #fff !important; }
+body.dark-mode.user-portal .user-dropdown-content .btn-logout,
+body.dark-mode.user-portal .user-dropdown-content #logout-btn { background: #9e3946 !important; border-color: #db707b !important; color: #fff !important; }
+body.dark-mode.user-portal .custom-notification { --portal-toast-bg: #1d304b; --portal-toast-text: #f5f8ff; --portal-toast-border: #6687b5; }
+body.dark-mode.user-portal .custom-notification.success { --portal-toast-bg: #163c32; --portal-toast-text: #e8fff4; --portal-toast-border: #3c9c79; }
+body.dark-mode.user-portal .custom-notification.error { --portal-toast-bg: #4a2430; --portal-toast-text: #fff0f3; --portal-toast-border: #d16a7a; }
+body.dark-mode.user-portal .custom-notification.warning { --portal-toast-bg: #4a3b1d; --portal-toast-text: #fff8e5; --portal-toast-border: #d6ad52; }
+body.dark-mode.user-portal .chat-contact-preview,
+body.dark-mode.user-portal .chat-contact-time { color: #b9c9de; }
+body.dark-mode.user-portal .chat-contact.has-unread strong { color: #fff; }
+
+/* Dark-mode annotation targets: headings are text surfaces, not pills. */
+body.dark-mode.user-portal .most-accessed-platforms-heading h2,
+body.dark-mode.user-portal #dashboard-overview-title,
+body.dark-mode.user-portal .dashboard-section-heading h2,
+body.dark-mode.user-portal #dining-calendar-month,
+body.dark-mode.user-portal #dining-menu-modal h2,
+body.dark-mode.user-portal #dining-menu-modal .meal-section h3 {
+    background: transparent !important;
+    color: #fff !important;
+}
+
+body.dark-mode.user-portal #dining-menu-modal .meal-section h3 i { color: #fff !important; }
+
+body.dark-mode.user-portal #lms-modal h2 {
+    background: transparent !important;
+    color: #fff !important;
+}
+
+body.dark-mode.user-portal #lms-modal #close-lms-modal {
+    color: #fff !important;
+}
+
+@media (max-width: 700px) {
+    body.user-portal .dashboard-focus-grid { grid-template-columns: 1fr; }
+}
+
+/* Dashboard hero composition: blue portal overview beside two live cards. */
+body.user-portal .dashboard-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.18fr) minmax(300px, .82fr);
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 22px;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-overview {
+    height: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-overview-actions {
+    margin-top: 16px;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-focus-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-focus-card {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-focus-card-content {
+    min-height: 48px;
+    margin: 10px 0;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-focus-meals {
+    gap: 7px;
+}
+
+body.user-portal .dashboard-hero-grid .dashboard-focus-meals span,
+body.user-portal .dashboard-hero-grid .dashboard-focus-announcement {
+    padding: 8px 9px;
+}
+
+body.user-portal .user-sidebar {
+    padding-top: 24px !important;
+}
+
+body.user-portal .user-dropdown-content > button,
+body.user-portal .user-dropdown-content > a,
+body.user-portal .user-dropdown-content .language-btn,
+body.user-portal .user-dropdown-content .theme-btn {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+}
+
+body.dark-mode.user-portal .profile-page-picture-button img,
+body.dark-mode.user-portal .profile-page-picture-button:hover img,
+body.dark-mode.user-portal .profile-page-picture-button:focus-visible img {
+    border-color: #fff !important;
+}
+
+@media (max-width: 900px) {
+    body.user-portal .dashboard-hero-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.user-portal .dashboard-hero-grid .dashboard-focus-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+    }
+
+    body.user-portal .user-sidebar {
+        padding-top: 14px !important;
+    }
+}
+
+@media (max-width: 620px) {
+    body.user-portal .dashboard-hero-grid .dashboard-focus-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

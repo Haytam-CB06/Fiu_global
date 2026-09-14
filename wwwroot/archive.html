@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Archive - FIU Global Portal</title>
+    <link rel="icon" type="image/png" href="/img/fiu9-mark2.png?v=1">
+    <link rel="stylesheet" href="css/styles.css?v=93">
+    <link rel="stylesheet" href="css/portal-theme.css?v=2">
+    <link rel="stylesheet" href="css/design-fixes.css?v=17">
+    <link rel="stylesheet" href="css/i18n.css?v=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body.archive-page { font-family: Arial, sans-serif !important; min-height: 100vh; }
+        body.archive-page * { font-family: Arial, sans-serif !important; }
+        body.archive-page .fa,
+        body.archive-page .fas { font-family: "Font Awesome 6 Free" !important; font-weight: 900 !important; }
+        .archive-shell {
+            width: min(1180px, calc(100% - 32px));
+            margin: 18px auto 40px;
+        }
+        .archive-topbar {
+            position: sticky;
+            top: 14px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 18px;
+            border-radius: 28px;
+            background: rgba(255,255,255,.88);
+            border: 1px solid rgba(20,40,80,.12);
+            box-shadow: 0 24px 70px rgba(15,30,56,.14);
+            backdrop-filter: blur(18px);
+        }
+        .archive-brand { display: flex; align-items: center; gap: 14px; flex: 1; }
+        .archive-brand img { height: 46px; border-radius: 16px; box-shadow: 0 10px 30px rgba(15,30,56,.14); }
+        .archive-brand h1 {
+            display: block !important;
+            margin: 0;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            font-size: clamp(24px, 3vw, 36px);
+            line-height: 1;
+            color: #101a2f !important;
+            letter-spacing: -.04em;
+        }
+        .archive-brand p { margin: 2px 0 0; color: #66728a; font-weight: 700; }
+        .archive-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .archive-language { position: relative; }
+        .archive-language .language-btn { min-height: 44px; padding: 0 15px; border: 1px solid rgba(20,40,80,.12); border-radius: 999px; background: rgba(255,255,255,.76); color: #101a2f; font: inherit; font-weight: 900; cursor: pointer; }
+        .archive-language .language-dropdown { display: none; position: absolute; inset: calc(100% + 8px) 0 auto auto; width: 156px; padding: 8px; border: 1px solid rgba(20,40,80,.12); border-radius: 14px; background: #fff; box-shadow: 0 16px 42px rgba(15,30,56,.16); }
+        .archive-language .language-dropdown.show { display: grid; gap: 2px; }
+        .archive-language .language-option { padding: 8px 10px; border-radius: 9px; color: #17233a; cursor: pointer; font-weight: 700; }
+        .archive-language .language-option:hover { background: #edf3fa; }
+        .archive-action {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            padding: 0 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(20,40,80,.12);
+            background: rgba(255,255,255,.76);
+            color: #101a2f;
+            font-weight: 900;
+            text-decoration: none;
+            box-shadow: 0 12px 28px rgba(15,30,56,.1);
+        }
+        .archive-action.primary { background: #0f2d57; color: #fff; }
+        .archive-hero {
+            margin: 24px 0;
+            padding: clamp(24px, 4vw, 42px);
+            border-radius: 30px;
+            background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(241,246,252,.88));
+            border: 1px solid rgba(20,40,80,.12);
+            box-shadow: 0 26px 70px rgba(15,30,56,.12);
+        }
+        .archive-hero h2 { margin: 0 0 8px; color: #101a2f; font-size: clamp(28px, 4vw, 46px); letter-spacing: -.05em; }
+        .archive-hero p { margin: 0; max-width: 720px; color: #66728a; font-size: 1.05rem; font-weight: 700; }
+        .archive-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .archive-panel {
+            min-height: 260px;
+            padding: 22px;
+            border-radius: 24px;
+            background: rgba(255,255,255,.9);
+            border: 1px solid rgba(20,40,80,.12);
+            box-shadow: 0 20px 54px rgba(15,30,56,.1);
+        }
+        .archive-panel h3 { margin: 0 0 16px; color: #101a2f; font-size: 1.35rem; }
+        .archive-list { display: grid; gap: 12px; }
+        .archive-item {
+            border: 1px solid rgba(20,40,80,.12);
+            border-radius: 16px;
+            padding: 14px 16px;
+            background: #f8fafc;
+            color: #17233a;
+        }
+        .archive-item strong { display: block; margin-bottom: 4px; color: #102449; }
+        .archive-item span { color: #64748b; font-weight: 700; }
+        body.archive-page .archive-week {
+            overflow: hidden;
+            border: 1px solid rgba(20,40,80,.12);
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15,30,56,.08);
+        }
+        body.archive-page .archive-week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #102d57, #1d4e87);
+            color: #fff;
+        }
+        body.archive-page .archive-week-title { display: grid; gap: 6px; }
+        body.archive-page .archive-week-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #f5c866;
+            font-size: .76rem;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        body.archive-page .archive-week-header strong { color: #fff; font-size: 1.05rem; }
+        body.archive-page .archive-week-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 10px;
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: 999px;
+            color: #fff;
+            font-size: .8rem;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        body.archive-page .archive-week-days { display: grid; gap: 12px; padding: 14px; }
+        body.archive-page .archive-week-day {
+            padding: 15px;
+            border: 1px solid rgba(20,40,80,.1);
+            border-radius: 15px;
+            background: #f8fafc;
+        }
+        body.archive-page .archive-day-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        body.archive-page .archive-day-heading strong { color: #102449; font-size: 1rem; }
+        body.archive-page .archive-day-heading span { color: #64748b; font-size: .8rem; font-weight: 900; text-transform: uppercase; }
+        body.archive-page .archive-meal-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+        body.archive-page .archive-meal { padding: 11px 12px; border-radius: 11px; background: #fff; border: 1px solid rgba(20,40,80,.1); }
+        body.archive-page .archive-meal > span { display: block; margin-bottom: 5px; color: #a46d12; font-size: .74rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+        body.archive-page .archive-meal > span i { margin-right: 4px; }
+        body.archive-page .archive-meal p { margin: 0; color: #17233a; font-weight: 800; line-height: 1.35; }
+        body.dark-mode.archive-page .archive-week { background: rgba(10,20,38,.88); border-color: rgba(255,255,255,.12); }
+        body.dark-mode.archive-page .archive-week-day { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); }
+        body.dark-mode.archive-page .archive-day-heading strong { color: #eef4ff; }
+        body.dark-mode.archive-page .archive-day-heading span { color: #c7d3e6; }
+        body.dark-mode.archive-page .archive-meal { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); }
+        body.dark-mode.archive-page .archive-meal p { color: #e7eefb; }
+        body.dark-mode.archive-page,
+        body.dark-mode.archive-page .archive-brand h1,
+        body.dark-mode.archive-page .archive-hero h2,
+        body.dark-mode.archive-page .archive-panel h3,
+        body.dark-mode.archive-page .archive-item strong { color: #eef4ff; }
+        body.dark-mode.archive-page .archive-topbar,
+        body.dark-mode.archive-page .archive-panel,
+        body.dark-mode.archive-page .archive-hero { background: rgba(10,20,38,.88); border-color: rgba(255,255,255,.12); }
+        body.dark-mode.archive-page .archive-item { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); color: #e7eefb; }
+        body.dark-mode.archive-page .archive-brand p,
+        body.dark-mode.archive-page .archive-hero p,
+        body.dark-mode.archive-page .archive-item span { color: #c7d3e6; }
+        body.dark-mode.archive-page .archive-brand h1 {
+            background: transparent !important;
+            color: #eef4ff !important;
+        }
+        body.dark-mode.archive-page .archive-language .language-btn,
+        body.dark-mode.archive-page .archive-language .language-dropdown { background: #10223e; color: #eef4ff; border-color: rgba(255,255,255,.16); }
+        body.dark-mode.archive-page .archive-language .language-option { color: #eef4ff; }
+        body.dark-mode.archive-page .archive-language .language-option:hover { background: rgba(255,255,255,.1); }
+        @media (max-width: 820px) {
+            .archive-topbar { position: static; flex-wrap: wrap; }
+            .archive-grid { grid-template-columns: 1fr; }
+            body.archive-page .archive-meal-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body class="archive-page">
+    <div class="archive-shell">
+        <header class="archive-topbar">
+            <div class="archive-brand">
+                <img src="/img/fiu9-mark.png" alt="FIU Global Portal logo">
+                <div>
+                    <h1 data-i18n="navigation.archive">Archive</h1>
+                    <p id="archive-user" data-i18n="common.loadingAccount">Loading account...</p>
+                </div>
+            </div>
+            <nav class="archive-actions" aria-label="Archive navigation" data-i18n-aria-label="navigation.archiveNavigation">
+                <a id="dashboard-link" class="archive-action primary" href="/student_dashboard"><i class="fas fa-table-cells-large"></i> <span data-i18n="navigation.dashboard">Dashboard</span></a>
+                <div class="archive-language language-selector">
+                    <button class="language-btn" id="language-btn" type="button" aria-haspopup="listbox"><span id="current-language">English</span></button>
+                    <div class="language-dropdown" id="language-dropdown" role="listbox">
+                        <div class="language-option" data-lang="en">English</div><div class="language-option" data-lang="tr">Türkçe</div><div class="language-option" data-lang="fr">Français</div><div class="language-option" data-lang="ru">Русский</div><div class="language-option" data-lang="ar">العربية</div>
+                    </div>
+                </div>
+                <button id="dark-mode-btn" class="archive-action" type="button"><span id="current-theme" data-i18n="theme.darkMode">Dark Mode</span></button>
+                <button id="logout-btn" class="archive-action" type="button"><i class="fas fa-right-from-bracket"></i> <span data-i18n="auth.logout">Logout</span></button>
+            </nav>
+        </header>
+
+        <section class="archive-hero">
+            <h2 data-i18n="archive.title">Your Archived Campus Updates</h2>
+            <p data-i18n="archive.description">Review announcements after 50 days and past dining menus that are available for your account.</p>
+        </section>
+
+        <main class="archive-grid">
+            <section class="archive-panel">
+                <h3 data-i18n="archive.announcements">Archived Announcements</h3>
+                <div id="archive-announcements" class="archive-list"><p data-i18n="announcements.loading">Loading announcements...</p></div>
+            </section>
+            <section class="archive-panel">
+                <h3 data-i18n="archive.diningMenus">Past Dining Menus</h3>
+                <div id="archive-dining" class="archive-list"><p data-i18n="dining.loading">Loading dining menus...</p></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/config.js?v=1"></script>
+    <script src="js/language.js?v=14"></script>
+    <script src="js/portal-i18n-catalog.js?v=1"></script>
+    <script src="js/archive.js?v=5"></script>
+</body>
+</html>

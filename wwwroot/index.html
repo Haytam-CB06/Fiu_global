@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FIU GLOBAL PORTAL</title>
+    <link rel="icon" type="image/png" href="/img/fiu9-mark2.png?v=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (() => {
+            const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+            const match = path.match(/\/(?:student|instructor)_dashboard(?:\/([^/]+))?$/);
+            document.documentElement.dataset.portalView = match?.[1] || 'dashboard';
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/styles.css?v=93">
+    <link rel="stylesheet" href="/css/portal-theme.css?v=2">
+    <link rel="stylesheet" href="/css/i18n.css?v=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body.user-portal { font-family: "Source Sans 3", "Segoe UI", sans-serif; font-size: 14px; }
+        body.user-portal .fa,
+        body.user-portal .fas,
+        body.user-portal .fa-solid,
+        body.user-portal .far,
+        body.user-portal .fa-regular,
+        body.user-portal .fab,
+        body.user-portal .fa-brands {
+            font-family: "Font Awesome 6 Free" !important;
+        }
+        body.user-portal .fab,
+        body.user-portal .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+        body.user-portal .fa,
+        body.user-portal .fas,
+        body.user-portal .fa-solid { font-weight: 900 !important; }
+        body.user-portal .far,
+        body.user-portal .fa-regular { font-weight: 400 !important; }
+        .platform-section-group, .archive-container { display: grid; gap: 16px; }
+        .platform-section-title { margin: 8px 0 0; color: #142850; }
+        .platform-section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+        .archive-block { display: grid; gap: 10px; }
+        .archive-row { width: 100%; border: 1px solid rgba(20,40,80,.12); border-radius: 14px; background: rgba(255,255,255,.86); padding: 14px 16px; display: flex; justify-content: space-between; gap: 12px; text-align: left; color: inherit; }
+        body.user-portal header {
+            position: sticky;
+            top: 14px;
+            z-index: 40;
+            width: min(1420px, calc(100% - 32px));
+            margin: 14px auto 22px;
+            padding: 14px 18px;
+            border: 1px solid rgba(20,40,80,.12);
+            border-radius: 30px;
+            background: rgba(255,255,255,.84);
+            box-shadow: 0 24px 70px rgba(15,30,56,.14);
+            backdrop-filter: blur(18px);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        body.user-portal .logo img { border-radius: 16px; box-shadow: 0 10px 30px rgba(15,30,56,.14); }
+        body.user-portal .header-title-section { flex: 1; }
+        body.user-portal .header-title-section h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); letter-spacing: -.05em; color: #101a2f; }
+        body.user-portal #username { color: #66728a; font-weight: 800; }
+        body.user-portal .header-right { display: flex; align-items: center; gap: 12px; }
+        body.user-portal .notification-btn,
+        body.user-portal .user-dropdown-btn,
+        body.user-portal .language-btn,
+        body.user-portal .theme-btn,
+        body.user-portal .btn-logout,
+        body.user-portal #super-admin-entry {
+            min-height: 46px;
+            border-radius: 999px;
+            border: 1px solid rgba(20,40,80,.12);
+            padding: 0 16px;
+            background: rgba(255,255,255,.76);
+            color: #101a2f;
+            font-weight: 900;
+            box-shadow: 0 12px 28px rgba(15,30,56,.1);
+        }
+        body.user-portal input[type="checkbox"] { width: 18px; height: 18px; accent-color: #1c3c73; }
+        body.user-portal label { display: inline-flex; align-items: center; gap: 10px; }
+        body.user-portal .btn-logout { background: #0f1e38; color: #fff; }
+        body.user-portal .user-dropdown-content { gap: 10px; }
+        body.dark-mode.user-portal header { background: rgba(10,20,38,.86); border-color: rgba(255,255,255,.12); }
+        body.dark-mode.user-portal,
+        body.dark-mode.user-portal p,
+        body.dark-mode.user-portal span,
+        body.dark-mode.user-portal strong,
+        body.dark-mode.user-portal small,
+        body.dark-mode.user-portal h2,
+        body.dark-mode.user-portal h3,
+        body.dark-mode.user-portal h4,
+        body.dark-mode.user-portal a,
+        body.dark-mode.user-portal .header-title-section h1,
+        body.dark-mode.user-portal .language-btn,
+        body.dark-mode.user-portal .theme-btn,
+        body.dark-mode.user-portal #super-admin-entry,
+        body.dark-mode.user-portal .notification-btn { color: #eef4ff; background: rgba(255,255,255,.08); }
+        @media (max-width: 860px) {
+            body.user-portal header { position: static; flex-wrap: wrap; }
+            body.user-portal .header-right,
+            body.user-portal .user-dropdown-content { flex-wrap: wrap; justify-content: flex-start; }
+        }
+    </style>
+    <link rel="stylesheet" href="/css/design-fixes.css?v=39">
+    <link rel="stylesheet" href="/css/dashboard-refined.css?v=5">
+    <link rel="stylesheet" href="/css/portal-upgrades.css?v=6">
+    <!--<style>
+    
+     * Responsive mobile adjustments
+     * Ensures all containers, cards, and buttons are full width and scrollable on mobile
+     */
+    @media (max-width: 600px) {
+      html, body {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+      .container, main, .section, .sections-container, .platforms-container, .right-side-container, .dining-menu-container, .announcements-container, .card, .dining-menu-card, .announcement-card, .notification-card, .btn, .btn-primary, .btn-logout, header, footer {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        position: static !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      /* Keep dropdowns anchored to their buttons on mobile */
+      .user-dropdown { position: relative !important; }
+      .user-dropdown-content {
+        position: absolute !important;
+        right: 0 !important;
+        width: auto !important;
+        min-width: 180px !important;
+        max-width: 90vw !important;
+      }
+      .notification-dropdown { position: relative !important; }
+      .notification-dropdown-content {
+        position: absolute !important;
+        right: 0 !important;
+        width: auto !important;
+        min-width: 280px !important;
+        max-width: 90vw !important;
+      }
+      .btn, .btn-primary, .btn-logout {
+        width: 100% !important;
+        margin-bottom: 8px !important;
+      }
+      .sections-container, .platforms-container, .right-side-container {
+        flex-direction: column !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+    }
+    </style>-->
+</head>
+<body class="user-portal">
+    <header>
+        <div class="logo">
+            <img src="/img/fiu9-mark2.png" alt="FIU Global Portal logo">
+        </div>
+        <div class="header-title-section">
+            <h1>FIU GLOBAL PORTAL</h1>
+            <div id="user-info">
+                <span id="username"></span>
+            </div>
+        </div>
+        <div class="header-right">
+            <a id="super-admin-entry" class="btn topbar-pill super-admin-entry" href="/admin_dashboard" hidden aria-hidden="true">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i><span data-i18n="navigation.superAdmin">Super Admin</span>
+            </a>
+            <div class="user-dropdown">
+                <button class="user-dropdown-btn" id="user-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="user-dropdown-content">
+                    <img id="header-profile-avatar" class="header-profile-avatar" src="/img/fiu9-mark2.png" alt="">
+                    <span id="header-profile-name">Account</span>
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="user-dropdown-content" id="user-dropdown-content" role="menu" aria-label="Account menu" data-i18n-aria-label="navigation.accountMenu">
+                    <button id="profile-btn" class="btn topbar-pill" type="button" role="menuitem"><span class="fa fa-user-circle" aria-hidden="true"></span> <span data-i18n="navigation.profile">Profile</span></button>
+                    <a id="archive-topbar-btn" class="btn topbar-pill archive-topbar-btn" href="/archive" role="menuitem">
+                        <span class="fa fa-box-archive" aria-hidden="true"></span> <span data-i18n="navigation.archive">Archive</span>
+                    </a>
+                    <div class="language-switcher" role="none">
+                        <button class="language-btn" id="language-btn" type="button" role="menuitem" aria-haspopup="true">
+                            <span id="current-language">English</span>
+                        </button>
+                        <div class="language-dropdown" id="language-dropdown">
+                            <div class="language-option" data-lang="en">English</div>
+                            <div class="language-option" data-lang="tr">Turkish</div>
+                            <div class="language-option" data-lang="fr">French</div>
+                            <div class="language-option" data-lang="ru">Russian</div>
+                            <div class="language-option" data-lang="ar">Arabic</div>
+                        </div>
+                    </div>
+                    <button id="dark-mode-btn" class="theme-btn" type="button" role="menuitem">
+                        <span id="current-theme" data-translate="light-mode">Light Mode</span>
+                    </button>
+                    <button id="logout-btn" class="btn btn-logout" type="button" role="menuitem" data-translate="logout">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="container portal-shell">
+        <aside id="user-sidebar" class="user-sidebar" aria-label="Portal navigation" data-i18n-aria-label="navigation.portalNavigation">
+            <div class="user-sidebar-brand"><img src="/img/fiu9-mark2.png" alt="FIU Global Portal"><span><strong>FIU GLOBAL PORTAL</strong><small id="user-sidebar-role" data-i18n="portal.portal">Portal</small></span></div>
+            <nav id="user-sidebar-nav" class="user-sidebar-nav">
+                <button type="button" class="active" data-user-view="dashboard"><i class="fas fa-table-columns"></i><span data-i18n="navigation.dashboard">Dashboard</span></button>
+                <button type="button" data-user-view="chat"><i class="fas fa-comments"></i><span data-i18n="navigation.chat">Chat</span></button>
+                <button type="button" data-user-view="profile"><i class="fas fa-user-circle"></i><span data-i18n="navigation.profile">Profile</span></button>
+                <div id="user-sidebar-granted" class="user-sidebar-granted"></div>
+            </nav>
+        </aside>
+        <main>
+            <div id="login-section" class="section">
+                <h2 data-translate="please-login">Please Login</h2>
+                <p data-translate="need-login">You need to login to access the platforms.</p>
+                <a href="/login.html" class="btn btn-primary" data-translate="go-to-login">Go to Login</a>
+            </div>
+            <div class="sections-container hidden" id="sections-container">
+                <div class="dashboard-hero-grid">
+                <section id="dashboard-overview" class="dashboard-overview" aria-labelledby="dashboard-overview-title">
+                    <div class="dashboard-overview-copy">
+                        <span class="eyebrow" data-i18n="portal.campusPortal">Campus portal</span>
+                        <h2 id="dashboard-overview-title" data-i18n="portal.dashboardTitle">Your campus, organized.</h2>
+                        <p data-i18n="portal.dashboardDescription">Find academic services, campus updates, and dining information from one clear dashboard.</p>
+                    </div>
+                    <div class="dashboard-overview-actions" aria-label="Dashboard shortcuts" data-i18n-aria-label="portal.dashboardShortcuts">
+                        <button type="button" class="dashboard-overview-action" data-dashboard-jump="most-accessed-platforms-section" data-dashboard-section="platforms" id="most-accessed-shortcut">
+                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                            <span><strong data-i18n="platforms.mostAccessedShort">Most accessed</strong><small data-i18n="platforms.frequentlyUsed">Your frequently used services</small></span>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </section>
+                <section id="dashboard-focus-grid" class="dashboard-focus-grid" aria-label="Today's campus information" data-i18n-aria-label="portal.todayInformation">
+                    <article id="dashboard-menu-card" class="dashboard-focus-card dashboard-focus-card-menu" data-dashboard-section="dining-menu">
+                        <div class="dashboard-focus-card-heading">
+                            <span class="dashboard-focus-icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
+                            <div><span class="eyebrow" data-i18n="portal.todayAtCampus">Today at campus</span><h2 data-i18n="dining.todaysMenu">Today’s menu</h2></div>
+                        </div>
+                        <div id="dashboard-menu-summary" class="dashboard-focus-card-content" aria-live="polite" data-i18n="dining.loadingToday">Loading today’s menu…</div>
+                        <button type="button" class="dashboard-focus-link" data-dashboard-jump="dining-menu-section"><span data-i18n="dining.viewFullMenu">View full menu</span> <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                    </article>
+                    <article id="dashboard-announcements-card" class="dashboard-focus-card dashboard-focus-card-announcements" data-dashboard-section="announcements">
+                        <div class="dashboard-focus-card-heading">
+                            <span class="dashboard-focus-icon" aria-hidden="true"><i class="fas fa-bullhorn"></i></span>
+                            <div><span class="eyebrow" data-i18n="announcements.stayInformed">Stay informed</span><h2 data-i18n="announcements.title">Announcements</h2></div>
+                        </div>
+                        <div id="dashboard-announcements-summary" class="dashboard-focus-card-content" aria-live="polite" data-i18n="announcements.loading">Loading announcements…</div>
+                        <button type="button" class="dashboard-focus-link" data-dashboard-jump="announcements-section"><span data-i18n="announcements.view">View announcements</span> <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                    </article>
+                </section>
+                </div>
+                <section id="most-accessed-platforms-section" class="most-accessed-platforms hidden" aria-labelledby="most-accessed-platforms-title" aria-live="polite">
+                    <div class="most-accessed-platforms-heading">
+                        <div><span class="eyebrow" data-i18n="platforms.personalized">Personalized for you</span><h2 id="most-accessed-platforms-title" data-i18n="platforms.mostAccessed">Most accessed platforms</h2><p id="most-accessed-platforms-copy" data-i18n="platforms.mostAccessedEmpty">Your most frequently opened campus services will appear here.</p></div>
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
+                    </div>
+                    <div id="most-accessed-platforms-list" class="most-accessed-platforms-list"></div>
+                </section>
+                <div class="platforms-panel">
+                    <div class="dashboard-section-heading">
+                        <div>
+                            <span class="eyebrow" data-i18n="platforms.campusAccess">Campus access</span>
+                            <h2 data-i18n="platforms.servicesForDay">Services for your day</h2>
+                        </div>
+                        <span class="dashboard-section-note" data-i18n="platforms.available">Your available platforms</span>
+                    </div>
+                    <div id="platforms-section" class="section">
+                    <h2 data-translate="select-platform">Select a Platform</h2>
+                    <p data-translate="choose-platform">Choose one of the following platforms to access:</p>
+                    <!-- Add notifications container for login errors/warnings -->
+                    <div id="login-notifications" class="login-notifications"></div>
+                    <div class="platforms-container">
+                        <!-- Platforms will be loaded dynamically from API -->
+                    </div>
+                    </div>
+                </div>
+
+            </div>
+            <section id="dining-menu-section" class="section dining-menu-page hidden" aria-labelledby="dining-menu-title">
+                <div class="page-heading-row"><div><span class="eyebrow" data-i18n="dining.campusDining">Campus dining</span><h2 id="dining-menu-title" data-translate="dining-menu">Dining Menu</h2><p data-translate="dining-menu-description">Dining menu and meal schedules:</p></div><div id="dining-menu-import-actions" class="dining-menu-import-actions hidden"><button type="button" class="btn btn-primary" id="dining-menu-import-btn"><i class="fas fa-file-import" aria-hidden="true"></i><span data-i18n="dining.import">Import dining menu</span></button><input id="dining-menu-import-file" type="file" accept=".csv,.xlsx" hidden><small id="dining-menu-import-status" aria-live="polite"></small></div></div>
+                <div class="dining-calendar" id="dining-calendar">
+                    <div class="dining-calendar-toolbar">
+                        <button type="button" class="dining-calendar-nav" id="dining-calendar-prev" aria-label="Previous month" data-i18n-aria-label="dining.previousMonth">‹</button>
+                        <h3 id="dining-calendar-month" aria-live="polite"></h3>
+                        <button type="button" class="dining-calendar-nav" id="dining-calendar-next" aria-label="Next month" data-i18n-aria-label="dining.nextMonth">›</button>
+                    </div>
+                    <div class="dining-calendar-weekdays" aria-hidden="true"><span data-i18n="weekday.sun.short">Sun</span><span data-i18n="weekday.mon.short">Mon</span><span data-i18n="weekday.tue.short">Tue</span><span data-i18n="weekday.wed.short">Wed</span><span data-i18n="weekday.thu.short">Thu</span><span data-i18n="weekday.fri.short">Fri</span><span data-i18n="weekday.sat.short">Sat</span></div>
+                    <div class="dining-calendar-grid" id="dining-calendar-grid" aria-live="polite"></div>
+                </div>
+            </section>
+            <section id="announcements-section" class="section announcements-page hidden" aria-labelledby="announcements-title">
+                <div class="page-heading-row"><div><span class="eyebrow" data-i18n="announcements.campusUpdates">Campus updates</span><h2 id="announcements-title" data-translate="announcements">Announcements</h2><p data-translate="announcements-description">Latest announcements from administrators:</p></div></div>
+                <div class="announcements-container">
+                    <button class="announcements-nav prev" id="announcements-prev-btn" style="display: none;">‹</button>
+                    <button class="announcements-nav next" id="announcements-next-btn" style="display: none;">›</button>
+                    <div class="announcements-slider" id="announcements-slider"></div>
+                    <div class="announcements-dots" id="announcements-dots"></div>
+                </div>
+            </section>
+            <section id="profile-section" class="section user-profile-page hidden" aria-labelledby="profile-page-title">
+                <div class="profile-page-heading"><button type="button" id="profile-page-picture-trigger" class="profile-page-picture-button" aria-label="Upload profile picture" title="Upload profile picture" data-i18n-aria-label="profile.uploadPicture" data-i18n-title="profile.uploadPicture"><img id="profile-page-picture-preview" src="/img/fiu9-mark2.png" alt="Profile picture" data-i18n-alt="profile.picture"><span class="profile-page-picture-overlay"><i class="fas fa-camera" aria-hidden="true"></i><span data-i18n="common.upload">Upload</span></span></button><input id="profile-page-picture-file" class="profile-page-picture-input" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><div><span class="eyebrow" data-i18n="profile.account">Account</span><h2 id="profile-page-title" data-i18n="profile.myProfile">My profile</h2><p data-i18n="profile.description">View and update your account details.</p></div></div>
+                <form id="profile-page-form" class="profile-page-form">
+                    <label><span data-i18n="profile.studentNumber">Student number</span><input id="profile-page-student_number" name="student_number" readonly></label>
+                    <label><span data-i18n="profile.firstName">First name</span><input id="profile-page-first_name" name="first_name"></label>
+                    <label><span data-i18n="profile.surname">Surname</span><input id="profile-page-last_name" name="last_name"></label>
+                    <label><span data-i18n="profile.faculty">Faculty</span><select id="profile-page-faculty" name="faculty" autocomplete="organization"><option value="" data-i18n="profile.loadingFaculties">Loading faculties…</option></select></label>
+                    <label><span data-i18n="profile.department">Department</span><select id="profile-page-department" name="department"><option value="" data-i18n="profile.chooseFaculty">Choose a faculty first</option></select></label>
+                    <button class="btn btn-primary" type="submit" data-i18n="profile.save">Save profile</button>
+                </form>
+                <div class="profile-page-password">
+                    <h3 data-i18n="profile.changePassword">Change password</h3>
+                    <form id="profile-page-password-form" class="profile-page-form">
+                        <label><span data-i18n="profile.currentPassword">Current password</span><span class="password-field"><input id="profile-current-password" name="current_password" type="password" autocomplete="current-password" required><button type="button" class="password-visibility-toggle" data-password-toggle="profile-current-password" aria-controls="profile-current-password" aria-label="Show current password" aria-pressed="false" data-i18n-aria-label="profile.showCurrentPassword"><i class="fas fa-eye" aria-hidden="true"></i></button></span></label>
+                        <label><span data-i18n="profile.newPassword">New password</span><span class="password-field"><input id="profile-new-password" name="new_password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-visibility-toggle" data-password-toggle="profile-new-password" aria-controls="profile-new-password" aria-label="Show new password" aria-pressed="false" data-i18n-aria-label="profile.showNewPassword"><i class="fas fa-eye" aria-hidden="true"></i></button></span></label>
+                        <label><span data-i18n="profile.confirmNewPassword">Confirm new password</span><span class="password-field"><input id="profile-confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-visibility-toggle" data-password-toggle="profile-confirm-password" aria-controls="profile-confirm-password" aria-label="Show confirmed password" aria-pressed="false" data-i18n-aria-label="profile.showConfirmedPassword"><i class="fas fa-eye" aria-hidden="true"></i></button></span></label>
+                        <button class="btn" type="submit" data-i18n="profile.changePassword">Change password</button>
+                    </form>
+                </div>
+                <div id="profile-page-feedback" aria-live="polite"></div>
+            </section>
+            <section id="chat-section" class="section user-chat-section hidden" aria-labelledby="chat-title">
+                <div class="chat-heading"><div><span class="eyebrow" data-i18n="chat.campusChat">Campus chat</span><h2 id="chat-title" data-i18n="chat.connect">Connect with campus</h2><p data-i18n="chat.description">Chat in real time with instructors and students.</p></div><i class="fas fa-comments"></i></div>
+                <div class="chat-layout">
+                    <aside class="chat-contacts" aria-label="People" data-i18n-aria-label="chat.people"><div class="chat-contacts-heading"><h3 data-i18n="chat.people">People</h3><span id="chat-connection-status" data-i18n="chat.connecting">Connecting…</span></div><input id="chat-contact-search" type="search" placeholder="Search people" aria-label="Search people" data-i18n-placeholder="chat.searchPeople" data-i18n-aria-label="chat.searchPeople"><div id="chat-contacts-list" class="chat-contacts-list"></div></aside>
+                    <div class="chat-conversation"><div id="chat-active-contact" class="chat-active-contact"><span class="chat-empty-state" data-i18n="chat.choosePerson">Choose a person to start chatting.</span></div><div id="campus-chat-messages" class="campus-chat-messages" aria-live="polite"><div class="chat-empty-state" data-i18n="chat.messagesAppear">Your messages will appear here.</div></div><form id="campus-chat-form" class="campus-chat-form"><label class="sr-only" for="campus-chat-input" data-i18n="chat.message">Message</label><input id="campus-chat-input" maxlength="2000" placeholder="Choose a person first…" autocomplete="off" required disabled data-i18n-placeholder="chat.choosePersonFirst"><button type="submit" class="btn btn-primary" disabled><i class="fas fa-paper-plane"></i><span data-i18n="chat.send">Send</span></button></form></div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 FIU GLOBAL PORTAL</p>
+        </footer>
+    </div>
+
+    <!-- LMS Sub-Platforms Modal -->
+    <div id="lms-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:#fff; border-radius:8px; max-width:600px; width:90%; max-height:80vh; margin:40px auto; padding:32px; position:relative; display:flex; flex-direction:column;">
+            <button id="close-lms-modal" style="position:absolute; top:12px; right:16px; font-size:24px; background:none; border:none; cursor:pointer;">&times;</button>
+            <h2 style="margin-bottom:24px; flex-shrink:0;" data-i18n="platforms.lmsModules">LMS Faculties / Modules</h2>
+            <div id="lms-subplatforms-list" style="flex:1; overflow-y:auto; padding-right:8px;">
+                <!-- Sub-platforms will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Config / env-style settings (must load before other JS) -->
+    <script src="/js/config.js?v=1"></script>
+    <script src="/js/language.js?v=14"></script>
+    <script src="/js/portal-i18n-catalog.js?v=1"></script>
+    <script src="/js/main.js?v=54"></script>
+    <script src="/js/user_admin_link.js?v=3"></script>
+    <script src="/js/tour.js?v=13"></script>
+    <script src="/js/login.js?v=9"></script>
+    <script src="/js/scroll-animations.js?v=1"></script>
+</body>
+</html>
