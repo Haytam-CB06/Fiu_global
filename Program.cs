@@ -12,7 +12,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 
 const string SessionCookieName = "LeaveRms.Session";
-var googleAuthStates = new ConcurrentDictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+var googleAuthStates = new OidcAuthorizationStateStore();
 
 // Resolve the project/publish root before creating the host.  A compiled
 // executable is often launched from bin/publish, while .env and wwwroot live
@@ -160,7 +160,9 @@ app.MapGet("/auth/session", (HttpContext context, AppDataStore dataStore) =>
             is_super_admin = session.IsSuperAdmin,
             user_role = session.UserRole,
             admin_role = session.AdminRole,
-            language = session.PreferredLanguage
+            language = session.PreferredLanguage,
+            expires_at = session.ExpiresAt.ToUniversalTime().ToString("O"),
+            duration_seconds = (int)SessionPolicy.Lifetime.TotalSeconds
         },
         user = user is null ? null : new
         {
@@ -203,6 +205,28 @@ app.MapGet("/auth/session", (HttpContext context, AppDataStore dataStore) =>
     });
 });
 
+app.MapPost("/auth/session/continue", (HttpContext context, AppDataStore dataStore) =>
+{
+    var token = context.Request.Cookies[SessionCookieName];
+    var session = dataStore.ContinueSession(token, SessionPolicy.Lifetime);
+    if (session is null)
+    {
+        context.Response.Cookies.Delete(SessionCookieName);
+        return Results.Unauthorized();
+    }
+
+    SetSessionCookie(context.Response, session.Token, SessionPolicy.Lifetime, context.Request);
+    return Results.Json(new
+    {
+        success = true,
+        session = new
+        {
+            expires_at = session.ExpiresAt.ToUniversalTime().ToString("O"),
+            duration_seconds = (int)SessionPolicy.Lifetime.TotalSeconds
+        }
+    });
+});
+
 app.MapPost("/auth/logout", (HttpContext context, AppDataStore dataStore) =>
 {
     var token = context.Request.Cookies[SessionCookieName];
@@ -210,6 +234,22 @@ app.MapPost("/auth/logout", (HttpContext context, AppDataStore dataStore) =>
     context.Response.Cookies.Delete(SessionCookieName);
     return Results.Json(new { success = true });
 });
+
+// These are intentionally separate, same-origin launch routes. FIU Global
+// validates only its own session then sends the browser to the target's own
+// Google/OIDC entry point. No FIU cookie, email address, token, or return URL
+// is forwarded across domains.
+app.MapGet("/sso/rms", (HttpContext context, AppDataStore dataStore) =>
+    LaunchPlatformSso(context, dataStore, app.Logger, "rms"));
+app.MapGet("/sso/leave", (HttpContext context, AppDataStore dataStore) =>
+    LaunchPlatformSso(context, dataStore, app.Logger, "leave"));
+app.MapGet("/sso/{platform}", (HttpContext context, string platform) =>
+{
+    app.Logger.LogWarning("Secure platform launch rejected for an unknown platform key.");
+    return WriteSsoError(context, "invalid_platform");
+});
+app.MapGet("/sso/error", (HttpContext context) =>
+    WriteSsoError(context, context.Request.Query["code"].ToString()));
 
 // The client language selector updates this cookie without changing the
 // authenticated session. It also persists the preference for background email
@@ -251,15 +291,14 @@ app.MapGet("/auth/google/login", (HttpContext context) =>
 {
     var clientId = GetEnv("GOOGLE_CLIENT_ID");
     var redirectUri = GetGoogleRedirectUri(context.Request);
-    if (!IsValidGoogleClientId(clientId) || !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
+    if (!IsValidGoogleClientId(clientId) || !IsAllowedGoogleRedirectUri(context.Request, redirectUri))
     {
         return Results.Redirect("/login.html?error=google_config");
     }
 
-    var state = Guid.NewGuid().ToString("N");
-    CleanupGoogleAuthStates(googleAuthStates);
-    googleAuthStates[state] = DateTimeOffset.UtcNow.AddMinutes(10);
-    context.Response.Cookies.Append("GoogleAuth.State", state, new CookieOptions
+    var transaction = googleAuthStates.Issue(TimeSpan.FromMinutes(10));
+    var codeChallenge = OidcAuthorizationStateStore.CreateCodeChallenge(transaction.CodeVerifier);
+    context.Response.Cookies.Append("GoogleAuth.State", transaction.State, new CookieOptions
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Lax,
@@ -274,7 +313,10 @@ app.MapGet("/auth/google/login", (HttpContext context) =>
         "&scope=openid%20email%20profile" +
         "&hd=final.edu.tr" +
         "&include_granted_scopes=true" +
-        $"&state={Uri.EscapeDataString(state)}";
+        "&code_challenge_method=S256" +
+        $"&code_challenge={Uri.EscapeDataString(codeChallenge)}" +
+        $"&nonce={Uri.EscapeDataString(transaction.Nonce)}" +
+        $"&state={Uri.EscapeDataString(transaction.State)}";
 
     return Results.Redirect(url);
 });
@@ -284,16 +326,26 @@ app.MapGet("/auth/google/callback", async (HttpContext context, AppDataStore dat
     var expectedState = context.Request.Cookies["GoogleAuth.State"];
     var state = context.Request.Query["state"].ToString();
     var code = context.Request.Query["code"].ToString();
-    var hasValidCookieState = !string.IsNullOrWhiteSpace(expectedState) && expectedState == state;
-    var hasValidServerState = googleAuthStates.TryRemove(state, out var stateExpiresAt) && stateExpiresAt > DateTimeOffset.UtcNow;
-    if (string.IsNullOrWhiteSpace(state) || string.IsNullOrWhiteSpace(code) || (!hasValidCookieState && !hasValidServerState))
+    var oauthError = context.Request.Query["error"].ToString();
+    var hasValidCookieState = OidcAuthorizationStateStore.ValuesMatch(expectedState, state);
+    var hasValidServerState = googleAuthStates.TryConsume(state, DateTimeOffset.UtcNow, out var transaction);
+    if (string.IsNullOrWhiteSpace(state) || !hasValidCookieState || !hasValidServerState || transaction is null)
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
-        app.Logger.LogWarning("Google login rejected before token exchange: invalid state or missing code.");
-        return Results.Redirect("/login.html?error=google");
+        app.Logger.LogWarning("Google login rejected before token exchange because the state was invalid, expired, or already consumed.");
+        return Results.Redirect("/login.html?error=google_state");
     }
 
-    var (email, exchangeError) = await ExchangeGoogleCodeForEmail(context.Request, code);
+    if (!string.IsNullOrWhiteSpace(oauthError) || string.IsNullOrWhiteSpace(code))
+    {
+        context.Response.Cookies.Delete("GoogleAuth.State");
+        app.Logger.LogInformation("Google login was cancelled or did not return an authorization code.");
+        return Results.Redirect(oauthError.Equals("access_denied", StringComparison.OrdinalIgnoreCase)
+            ? "/login.html?error=google_cancelled"
+            : "/login.html?error=google");
+    }
+
+    var (email, exchangeError) = await ExchangeGoogleCodeForEmail(context.Request, code, transaction.CodeVerifier, transaction.Nonce);
     if (string.IsNullOrWhiteSpace(email))
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
@@ -308,10 +360,10 @@ app.MapGet("/auth/google/callback", async (HttpContext context, AppDataStore dat
         return Results.Redirect($"/login.html?error={errorCode}");
     }
 
-    if (!email.EndsWith("@final.edu.tr", StringComparison.OrdinalIgnoreCase))
+    if (!PlatformSsoPolicy.IsFinalUniversityEmail(email))
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
-        app.Logger.LogWarning("Google login rejected for non-final.edu.tr account: {Email}", email);
+        app.Logger.LogWarning("Google login rejected for an account outside the approved university domain.");
         return Results.Redirect("/login.html?error=final_domain_required");
     }
 
@@ -320,7 +372,7 @@ app.MapGet("/auth/google/callback", async (HttpContext context, AppDataStore dat
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
         var session = dataStore.CreateAdminSession(admin);
-        SetSessionCookie(context.Response, session.Token);
+        SetSessionCookie(context.Response, session.Token, request: context.Request);
         return Results.Redirect(GetDashboardPath(session));
     }
 
@@ -328,7 +380,7 @@ app.MapGet("/auth/google/callback", async (HttpContext context, AppDataStore dat
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
         var session = dataStore.CreateUserSession(user, admin);
-        SetSessionCookie(context.Response, session.Token);
+        SetSessionCookie(context.Response, session.Token, request: context.Request);
         return Results.Redirect(GetDashboardPath(session));
     }
 
@@ -337,13 +389,13 @@ app.MapGet("/auth/google/callback", async (HttpContext context, AppDataStore dat
     {
         context.Response.Cookies.Delete("GoogleAuth.State");
         var session = dataStore.CreateUserSession(newGoogleUser);
-        SetSessionCookie(context.Response, session.Token);
-        app.Logger.LogInformation("Google login provisioned new student account for {Email}", email);
+        SetSessionCookie(context.Response, session.Token, request: context.Request);
+        app.Logger.LogInformation("Google login provisioned a new student account.");
         return Results.Redirect(GetDashboardPath(session));
     }
 
     context.Response.Cookies.Delete("GoogleAuth.State");
-    app.Logger.LogWarning("Google login rejected because no portal account exists for {Email}", email);
+    app.Logger.LogWarning("Google login rejected because no portal account exists.");
     return Results.Redirect("/login.html?error=unauthorized_google");
 });
 
@@ -370,7 +422,7 @@ app.MapMethods("/database/api.php", new[] { "GET", "POST" }, async (HttpRequest 
 
         var admin = store.ValidateAdmin(payload.Username, payload.Password);
         var session = store.CreateUserSession(user, admin);
-        SetSessionCookie(request.HttpContext.Response, session.Token);
+        SetSessionCookie(request.HttpContext.Response, session.Token, request: request);
 
         return Results.Json(new
         {
@@ -589,7 +641,7 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
 
         var user = store.ValidateUser(body.GetString("username"), body.GetString("password"));
         var session = user is not null ? store.CreateUserSession(user, admin) : store.CreateAdminSession(admin);
-        SetSessionCookie(request.HttpContext.Response, session.Token);
+        SetSessionCookie(request.HttpContext.Response, session.Token, request: request);
         return Results.Json(new { success = true, admin = SanitizeAdmin(admin) });
     }
 
@@ -632,6 +684,7 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
         "announcement-create" => HandleAnnouncementCreate(body, store),
         "announcement-update" => HandleAnnouncementUpdate(body, store),
         "announcement-delete" => HandleAnnouncementDelete(body, store),
+        "smtp-notification-test" => HandleSmtpNotificationTest(store),
         "dining-menu-create" => HandleDiningMenuCreate(body, store),
         "dining-menu-update" => HandleDiningMenuUpdate(body, store),
         "dining-menu-delete" => HandleDiningMenuDelete(body, store),
@@ -2168,6 +2221,14 @@ static IResult HandleAnnouncementCreate(Dictionary<string, object?> body, AppDat
         : Results.BadRequest(new { error = "Failed to create announcement" });
 }
 
+static IResult HandleSmtpNotificationTest(AppDataStore store)
+{
+    var result = store.SendSmtpNotificationTests();
+    return result.Success
+        ? Results.Json(new { success = true, message = "Three SMTP notification tests were sent." })
+        : Results.BadRequest(new { error = result.Error ?? "Unable to send SMTP notification tests" });
+}
+
 static IResult HandleAnnouncementUpdate(Dictionary<string, object?> body, AppDataStore store)
 {
     var updated = store.UpdateAnnouncement(
@@ -2382,6 +2443,99 @@ static bool IsValidGoogleClientId(string clientId) =>
     clientId.EndsWith(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase) &&
     !clientId.Contains("your-google-client-id", StringComparison.OrdinalIgnoreCase);
 
+static bool IsAllowedGoogleRedirectUri(HttpRequest request, string candidate)
+{
+    if (!Uri.TryCreate(candidate, UriKind.Absolute, out var redirectUri) ||
+        !redirectUri.AbsolutePath.Equals("/auth/google/callback", StringComparison.Ordinal) ||
+        (!redirectUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) && !redirectUri.IsLoopback) ||
+        !string.IsNullOrEmpty(redirectUri.Query) ||
+        !string.IsNullOrEmpty(redirectUri.Fragment))
+    {
+        return false;
+    }
+
+    var configuredAllowlist = GetEnv("GOOGLE_ALLOWED_REDIRECT_URIS")
+        .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (configuredAllowlist.Any(allowed =>
+        Uri.TryCreate(allowed, UriKind.Absolute, out var allowedUri) &&
+        string.Equals(allowedUri.AbsoluteUri, redirectUri.AbsoluteUri, StringComparison.Ordinal)))
+    {
+        return true;
+    }
+
+    // GOOGLE_REDIRECT_URI is an explicit single-item allowlist for existing
+    // deployments. GOOGLE_ALLOWED_REDIRECT_URIS adds allowed callbacks rather
+    // than accidentally disabling an already configured primary callback.
+    var configuredRedirectUri = GetEnv("GOOGLE_REDIRECT_URI");
+    if (Uri.TryCreate(configuredRedirectUri, UriKind.Absolute, out var configuredRedirect) &&
+        string.Equals(configuredRedirect.AbsoluteUri, redirectUri.AbsoluteUri, StringComparison.Ordinal))
+    {
+        return true;
+    }
+
+    var appBaseUrl = GetEnv("APP_BASE_URL").TrimEnd('/');
+    if (Uri.TryCreate(appBaseUrl, UriKind.Absolute, out var appBase))
+    {
+        return redirectUri.Scheme.Equals(appBase.Scheme, StringComparison.OrdinalIgnoreCase) &&
+               redirectUri.Host.Equals(appBase.Host, StringComparison.OrdinalIgnoreCase) &&
+               redirectUri.Port == appBase.Port;
+    }
+
+    // An unconfigured origin is only tolerated for an explicitly local
+    // development callback. Production must set APP_BASE_URL or the explicit
+    // GOOGLE_ALLOWED_REDIRECT_URIS allowlist.
+    return redirectUri.IsLoopback &&
+           redirectUri.Scheme.Equals(request.Scheme, StringComparison.OrdinalIgnoreCase) &&
+           redirectUri.Host.Equals(request.Host.Host, StringComparison.OrdinalIgnoreCase) &&
+           redirectUri.Port == request.Host.Port.GetValueOrDefault(redirectUri.IsDefaultPort ? redirectUri.Port : -1);
+}
+
+static IResult LaunchPlatformSso(HttpContext context, AppDataStore dataStore, ILogger logger, string platformKey)
+{
+    context.Response.Headers.CacheControl = "no-store, private";
+
+    var target = PlatformSsoPolicy.FindTarget(platformKey);
+    if (target is null)
+    {
+        logger.LogWarning("Secure platform launch rejected for an unknown platform key.");
+        return WriteSsoError(context, "invalid_platform");
+    }
+
+    var session = GetSessionInfo(context);
+    if (session is null || !session.IsUser || !session.UserId.HasValue)
+    {
+        return Results.Redirect("/login.html?error=sso_login_required");
+    }
+
+    var user = dataStore.GetUserById(session.UserId.Value);
+    if (!PlatformSsoPolicy.IsFinalUniversityEmail(user?.Email))
+    {
+        logger.LogWarning("Secure platform launch rejected because the authenticated account is outside the approved university domain.");
+        return WriteSsoError(context, "unauthorized_email");
+    }
+
+    if (!PlatformSsoPolicy.TryGetApprovedStartUrl(target, GetEnv(target.StartUrlEnvironmentVariable), out var startUrl) || startUrl is null)
+    {
+        logger.LogError("Secure platform launch is unavailable because its configured start URL is not allowlisted: {Platform}.", target.Key);
+        return WriteSsoError(context, "invalid_redirect");
+    }
+
+    // The platform establishes its own session after its own OIDC callback.
+    // The Location header contains only the allowlisted OAuth start endpoint.
+    logger.LogInformation("Secure platform launch started for {Platform}.", target.Key);
+    return Results.Redirect(startUrl.AbsoluteUri);
+}
+
+static IResult WriteSsoError(HttpContext context, string? code)
+{
+    context.Response.Headers.CacheControl = "no-store, private";
+    var error = SsoErrorCatalog.Resolve(code);
+    var title = System.Net.WebUtility.HtmlEncode(error.Title);
+    var message = System.Net.WebUtility.HtmlEncode(error.Message);
+    var html = $"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>FIU Global Portal — {title}</title><style>body{{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f3f6fb;color:#14223b;display:grid;place-items:center;min-height:100vh;margin:0}}main{{max-width:540px;margin:24px;padding:32px;border-radius:18px;background:#fff;box-shadow:0 12px 40px rgba(20,34,59,.12);text-align:center}}h1{{margin:0 0 12px}}p{{color:#5d6d86;line-height:1.55}}a{{display:inline-block;margin-top:8px;padding:10px 18px;border-radius:10px;background:#15396d;color:#fff;font-weight:700;text-decoration:none}}</style></head><body><main><h1>{title}</h1><p>{message}</p><a href=\"/student_dashboard\">Return to FIU Global</a></main></body></html>";
+    return Results.Content(html, "text/html; charset=utf-8", Encoding.UTF8, error.StatusCode);
+}
+
 static string GetGoogleRedirectUri(HttpRequest request)
 {
     var configured = GetEnv("GOOGLE_REDIRECT_URI");
@@ -2403,7 +2557,7 @@ static string GetGoogleRedirectUri(HttpRequest request)
     return BuildAbsoluteUrl(request, "/auth/google/callback");
 }
 
-static async Task<(string? Email, string? Error)> ExchangeGoogleCodeForEmail(HttpRequest request, string code)
+static async Task<(string? Email, string? Error)> ExchangeGoogleCodeForEmail(HttpRequest request, string code, string codeVerifier, string expectedNonce)
 {
     var clientId = GetEnv("GOOGLE_CLIENT_ID");
     var clientSecret = GetEnv("GOOGLE_CLIENT_SECRET");
@@ -2424,7 +2578,8 @@ static async Task<(string? Email, string? Error)> ExchangeGoogleCodeForEmail(Htt
             ["client_secret"] = clientSecret,
             ["code"] = code,
             ["grant_type"] = "authorization_code",
-            ["redirect_uri"] = GetGoogleRedirectUri(request)
+            ["redirect_uri"] = GetGoogleRedirectUri(request),
+            ["code_verifier"] = codeVerifier
         }));
         var tokenBody = await tokenResponse.Content.ReadAsStringAsync();
         if (!tokenResponse.IsSuccessStatusCode)
@@ -2433,37 +2588,15 @@ static async Task<(string? Email, string? Error)> ExchangeGoogleCodeForEmail(Htt
         }
 
         using var tokenJson = JsonDocument.Parse(tokenBody);
-        if (tokenJson.RootElement.TryGetProperty("id_token", out var idToken))
+        if (!tokenJson.RootElement.TryGetProperty("id_token", out var idToken) || string.IsNullOrWhiteSpace(idToken.GetString()))
         {
-            var (emailFromToken, tokenError) = TryGetEmailFromGoogleIdToken(idToken.GetString(), clientId);
-            if (!string.IsNullOrWhiteSpace(emailFromToken))
-            {
-                return (emailFromToken, null);
-            }
-
-            if (!string.IsNullOrWhiteSpace(tokenError))
-            {
-                return (null, tokenError);
-            }
+            // The OpenID Connect request includes the openid scope. Reject a
+            // response without an ID token rather than falling back to an
+            // access-token-only profile lookup, which cannot validate nonce.
+            return (null, "missing_id_token");
         }
 
-        if (!tokenJson.RootElement.TryGetProperty("access_token", out var accessToken) || string.IsNullOrWhiteSpace(accessToken.GetString()))
-        {
-            return (null, "missing_access_token");
-        }
-
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.GetString());
-        var userInfoResponse = await http.GetAsync("https://openidconnect.googleapis.com/v1/userinfo");
-        var userInfo = await userInfoResponse.Content.ReadAsStringAsync();
-        if (!userInfoResponse.IsSuccessStatusCode)
-        {
-            return (null, $"userinfo_http_{(int)userInfoResponse.StatusCode}");
-        }
-
-        using var userJson = JsonDocument.Parse(userInfo);
-        return userJson.RootElement.TryGetProperty("email", out var email)
-            ? (email.GetString(), null)
-            : (null, "missing_email");
+        return TryGetEmailFromGoogleIdToken(idToken.GetString(), clientId, expectedNonce);
     }
     catch (TaskCanceledException)
     {
@@ -2494,7 +2627,7 @@ static string? GetGoogleError(string responseBody)
     }
 }
 
-static (string? Email, string? Error) TryGetEmailFromGoogleIdToken(string? idToken, string expectedAudience)
+static (string? Email, string? Error) TryGetEmailFromGoogleIdToken(string? idToken, string expectedAudience, string expectedNonce)
 {
     if (string.IsNullOrWhiteSpace(idToken))
     {
@@ -2514,6 +2647,18 @@ static (string? Email, string? Error) TryGetEmailFromGoogleIdToken(string? idTok
         !string.Equals(audience.GetString(), expectedAudience, StringComparison.Ordinal))
     {
         return (null, "invalid_id_token_audience");
+    }
+
+    if (!root.TryGetProperty("iss", out var issuer) ||
+        (issuer.GetString() is not "https://accounts.google.com" and not "accounts.google.com"))
+    {
+        return (null, "invalid_id_token_issuer");
+    }
+
+    if (!root.TryGetProperty("nonce", out var nonce) ||
+        !OidcAuthorizationStateStore.ValuesMatch(nonce.GetString(), expectedNonce))
+    {
+        return (null, "invalid_id_token_nonce");
     }
 
     if (root.TryGetProperty("exp", out var expiresAt) &&
@@ -2541,30 +2686,21 @@ static byte[] Base64UrlDecode(string value)
     return Convert.FromBase64String(padded);
 }
 
-static void CleanupGoogleAuthStates(ConcurrentDictionary<string, DateTimeOffset> states)
-{
-    var now = DateTimeOffset.UtcNow;
-    foreach (var item in states.Where(item => item.Value <= now).ToList())
-    {
-        states.TryRemove(item.Key, out _);
-    }
-}
-
-static void SetSessionCookie(HttpResponse response, string token)
+static void SetSessionCookie(HttpResponse response, string token, TimeSpan? lifetime = null, HttpRequest? request = null)
 {
     response.Cookies.Append(SessionCookieName, token, new CookieOptions
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Lax,
-        Secure = ShouldUseSecureCookies(),
-        Expires = DateTimeOffset.UtcNow.AddHours(8),
+        Secure = ShouldUseSecureCookies(request),
+        Expires = DateTimeOffset.UtcNow.Add(lifetime ?? SessionPolicy.Lifetime),
         IsEssential = true
     });
 }
 
 static bool ShouldUseSecureCookies(HttpRequest? request = null)
 {
-    if (request?.IsHttps == true) return true;
+    if (request is not null) return request.IsHttps;
     var configuredBaseUrl = GetEnv("APP_BASE_URL");
     return Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 }

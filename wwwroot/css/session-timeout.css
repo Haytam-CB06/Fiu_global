@@ -1,0 +1,160 @@
+.fiu-session-timeout[hidden] {
+    display: none !important;
+}
+
+.fiu-session-timeout {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.fiu-session-timeout__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(9, 23, 49, .56);
+    backdrop-filter: blur(5px);
+}
+
+.fiu-session-timeout__dialog {
+    position: relative;
+    width: min(100%, 460px);
+    padding: 30px;
+    border: 1px solid rgba(20, 40, 80, .14);
+    border-radius: 24px;
+    background: #fff;
+    color: #142850;
+    box-shadow: 0 28px 80px rgba(4, 18, 44, .28);
+    text-align: center;
+    animation: fiu-session-timeout-enter .2s ease-out;
+}
+
+.fiu-session-timeout__icon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+    border-radius: 16px;
+    background: #fff2d5;
+    color: #ba7400;
+    font-size: 1.35rem;
+}
+
+.fiu-session-timeout__dialog h2 {
+    margin: 0;
+    color: #142850;
+    font-size: clamp(1.2rem, 3vw, 1.55rem);
+    line-height: 1.2;
+}
+
+.fiu-session-timeout__dialog p {
+    margin: 12px auto 24px;
+    max-width: 350px;
+    color: #5d6d86;
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+.fiu-session-timeout__actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap-reverse;
+}
+
+.fiu-session-timeout__actions button {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.fiu-session-timeout__actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.fiu-session-timeout__actions button:focus-visible {
+    outline: 3px solid rgba(33, 106, 205, .28);
+    outline-offset: 2px;
+}
+
+.fiu-session-timeout__actions button:disabled {
+    cursor: wait;
+    opacity: .62;
+}
+
+.fiu-session-timeout__secondary {
+    border: 1px solid rgba(20, 40, 80, .16);
+    background: #f5f7fb;
+    color: #263b5d;
+}
+
+.fiu-session-timeout__primary {
+    border: 1px solid #173c73;
+    background: #173c73;
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(23, 60, 115, .22);
+}
+
+body.fiu-session-timeout-open {
+    overflow: hidden;
+}
+
+body.dark-mode .fiu-session-timeout__dialog,
+body.admin-page.dark-mode .fiu-session-timeout__dialog {
+    border-color: rgba(191, 211, 239, .18);
+    background: #152744;
+    color: #eef5ff;
+}
+
+body.dark-mode .fiu-session-timeout__dialog h2,
+body.admin-page.dark-mode .fiu-session-timeout__dialog h2 {
+    color: #f5f8ff;
+}
+
+body.dark-mode .fiu-session-timeout__dialog p,
+body.admin-page.dark-mode .fiu-session-timeout__dialog p {
+    color: #c1cee2;
+}
+
+body.dark-mode .fiu-session-timeout__secondary,
+body.admin-page.dark-mode .fiu-session-timeout__secondary {
+    border-color: rgba(191, 211, 239, .22);
+    background: #21395d;
+    color: #eef5ff;
+}
+
+@keyframes fiu-session-timeout-enter {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 520px) {
+    .fiu-session-timeout__dialog {
+        padding: 24px 20px;
+        border-radius: 20px;
+    }
+
+    .fiu-session-timeout__actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .fiu-session-timeout__actions button {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fiu-session-timeout__dialog,
+    .fiu-session-timeout__actions button {
+        animation: none;
+        transition: none;
+    }
+}

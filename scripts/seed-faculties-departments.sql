@@ -1,30 +1,6 @@
--- FIU Global Portal academic directory seed.
--- Source: https://www.final.edu.tr/ufu-7-akademik/o-1-fakulteler
--- The source labels the child entries as programs; the portal exposes them as profile departments.
--- This script is safe to run on an empty deployed database: it creates the
--- two tables before inserting/updating the official directory entries.
-CREATE TABLE IF NOT EXISTS dotnet_faculties (
-  id INT NOT NULL PRIMARY KEY,
-  name VARCHAR(180) NOT NULL,
-  is_active TINYINT(1) NOT NULL DEFAULT 1,
-  created_at DATETIME NOT NULL,
-  updated_at DATETIME NOT NULL,
-  UNIQUE KEY uq_dotnet_faculty_name (name)
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS dotnet_departments (
-  id INT NOT NULL PRIMARY KEY,
-  faculty_id INT NOT NULL,
-  name VARCHAR(180) NOT NULL,
-  is_active TINYINT(1) NOT NULL DEFAULT 1,
-  created_at DATETIME NOT NULL,
-  updated_at DATETIME NOT NULL,
-  UNIQUE KEY uq_dotnet_department_faculty_name (faculty_id, name),
-  INDEX idx_dotnet_departments_faculty_id (faculty_id),
-  CONSTRAINT fk_dotnet_department_faculty
-    FOREIGN KEY (faculty_id) REFERENCES dotnet_faculties(id) ON DELETE CASCADE
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
+-- FIU Global Portal academic directory data only.
+-- Run this AFTER the dotnet_faculties and dotnet_departments tables exist.
+-- It is idempotent: rerunning it updates the same 9 faculties and 33 departments.
 START TRANSACTION;
 
 INSERT INTO dotnet_faculties (id, name, is_active, created_at, updated_at) VALUES

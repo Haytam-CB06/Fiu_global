@@ -1,5 +1,6 @@
 using FiuGlobal.DotNet.Models;
 using MySqlConnector;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace FiuGlobal.DotNet.Services;
@@ -79,10 +80,11 @@ public sealed class DatabaseStateStorage
     }
 
     /// <summary>
-    /// Imports accounts that were created by the older PHP application. The
-    /// .NET state remains authoritative for access rules and profile fields,
-    /// but importing these rows means an existing account is not invisible to
-    /// the new application after deployment.
+    /// Imports accounts that were created by the older PHP application and
+    /// makes <c>users.id</c> the canonical user identifier everywhere in the
+    /// portal. Chat rows must use the same identifier that phpMyAdmin and the
+    /// legacy application expose; keeping a separate JSON-only ID causes
+    /// sender_id/recipient_id to point at the wrong person after an import.
     /// </summary>
     public void MergeLegacyAccounts(AppState state)
     {
@@ -93,7 +95,7 @@ public sealed class DatabaseStateStorage
             using var connection = new MySqlConnection(_connectionString);
             connection.Open();
 
-            var nextUserId = state.Users.Count == 0 ? 1 : state.Users.Max(item => item.Id) + 1;
+            var legacyUsers = new List<LegacyUserRow>();
             if (LegacyTableExists(connection, "users"))
             {
                 using var command = connection.CreateCommand();
@@ -103,26 +105,18 @@ public sealed class DatabaseStateStorage
                 {
                     var username = ReadString(reader, "username");
                     var email = ReadString(reader, "email");
-                    if (string.IsNullOrWhiteSpace(username) ||
-                        state.Users.Any(item => item.Username.Equals(username, StringComparison.OrdinalIgnoreCase) ||
-                                                (!string.IsNullOrWhiteSpace(email) && item.Email.Equals(email, StringComparison.OrdinalIgnoreCase))))
-                    {
-                        continue;
-                    }
-
-                    state.Users.Add(new UserAccount
-                    {
-                        Id = nextUserId++,
-                        Username = username,
-                        Password = ReadString(reader, "password"),
-                        Email = email,
-                        Role = string.Equals(ReadString(reader, "role"), "student", StringComparison.OrdinalIgnoreCase)
-                            ? "student"
-                            : "instructor",
-                        CreatedAt = ReadDate(reader, "created_at")
-                    });
+                    if (string.IsNullOrWhiteSpace(username)) continue;
+                    legacyUsers.Add(new LegacyUserRow(
+                        reader.GetInt32("id"),
+                        username,
+                        ReadString(reader, "password"),
+                        email,
+                        ReadString(reader, "role"),
+                        ReadDate(reader, "created_at")));
                 }
             }
+
+            ReconcileUserIds(state, connection, legacyUsers);
 
             var nextAdminId = state.Admins.Count == 0 ? 1 : state.Admins.Max(item => item.Id) + 1;
             if (LegacyTableExists(connection, "admins"))
@@ -155,7 +149,6 @@ public sealed class DatabaseStateStorage
                 }
             }
 
-            state.Counters.NextUserId = Math.Max(state.Counters.NextUserId, nextUserId);
             state.Counters.NextAdminId = Math.Max(state.Counters.NextAdminId, nextAdminId);
         }
         catch (Exception ex)
@@ -163,6 +156,34 @@ public sealed class DatabaseStateStorage
             // Import is additive and optional. Keep the normal JSON state
             // available if an older installation has a different schema.
             Console.Error.WriteLine($"Legacy account import skipped: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the relational guarantees once every persisted chat row has been
+    /// reconciled. Some legacy installations use a non-InnoDB users table, so
+    /// failure to add the optional database constraint must not take the portal
+    /// offline; the application-level canonical-ID validation still applies.
+    /// </summary>
+    public void EnsureChatUserForeignKeys()
+    {
+        if (!IsConfigured) return;
+
+        try
+        {
+            using var connection = new MySqlConnection(_connectionString);
+            connection.Open();
+            if (!LegacyTableExists(connection, "users") || HasInvalidChatUserReferences(connection)) return;
+
+            EnsureChatForeignKey(connection, "fk_dotnet_chat_sender_user", "sender_id");
+            EnsureChatForeignKey(connection, "fk_dotnet_chat_recipient_user", "recipient_id");
+        }
+        catch
+        {
+            // The portal continues securely when a host cannot add foreign
+            // keys (for example, an older MyISAM users table). Never include
+            // provider diagnostics or connection details in application logs.
+            Console.Error.WriteLine("Chat user foreign-key enforcement was not added by this host.");
         }
     }
 
@@ -350,12 +371,14 @@ public sealed class DatabaseStateStorage
             while (reader.Read())
             {
                 var sentAt = DateTime.SpecifyKind(reader.GetDateTime("sent_at"), DateTimeKind.Utc);
+                var storedText = reader.GetString("message_text");
+                var messageText = DecryptChatText(storedText);
                 messages.Add(new ChatMessageItem
                 {
                     Id = reader.GetString("message_id"),
                     SenderId = reader.GetInt32("sender_id"),
                     RecipientId = reader.GetInt32("recipient_id"),
-                    Text = (_chatProtector ?? throw new InvalidOperationException("Chat encryption is unavailable.")).DecryptOrLegacy(reader.GetString("message_text")),
+                    Text = messageText,
                     SentAt = new DateTimeOffset(sentAt),
                     ReceivedAt = ReadNullableDateTimeOffset(reader, "received_at"),
                     SeenAt = ReadNullableDateTimeOffset(reader, "seen_at"),
@@ -371,6 +394,26 @@ public sealed class DatabaseStateStorage
 
         messages.Reverse();
         return messages;
+    }
+
+    private string DecryptChatText(string storedText)
+    {
+        try
+        {
+            return (_chatProtector ?? throw new InvalidOperationException("Chat encryption is unavailable.")).DecryptOrLegacy(storedText);
+        }
+        catch (CryptographicException)
+        {
+            // A message written with a retired encryption key should not hide
+            // the rest of the conversation or suppress its unread count.
+            return "[Protected message]";
+        }
+        catch (FormatException)
+        {
+            // Keep malformed legacy ciphertext visible as a protected item
+            // while allowing valid messages in the same conversation to load.
+            return "[Protected message]";
+        }
     }
 
     public ChatMessageStatusUpdate? UpdateChatMessageStatus(string messageId, int recipientId, bool seen)
@@ -440,6 +483,7 @@ public sealed class DatabaseStateStorage
                 SELECT message_id, sender_id, recipient_id, sent_at
                 FROM dotnet_chat_messages AS message
                 WHERE message.sent_at <= @cutoff
+                  AND message.seen_at IS NULL
                   AND message.reminder_sent_at IS NULL
                   AND NOT EXISTS (
                       SELECT 1
@@ -566,6 +610,172 @@ public sealed class DatabaseStateStorage
         {
             MarkUnavailable(ex);
             throw;
+        }
+    }
+
+    private void ReconcileUserIds(AppState state, MySqlConnection connection, IReadOnlyList<LegacyUserRow> legacyUsers)
+    {
+        state.UserPlatformAccess ??= [];
+        state.ActivityLogs ??= [];
+
+        var stateUsers = state.Users.ToList();
+        var legacyIds = legacyUsers.Select(item => item.Id).ToHashSet();
+        var claimedLegacyIds = new HashSet<int>();
+        var desiredIds = new Dictionary<int, int>();
+
+        // First reserve the IDs belonging to accounts we can identify by the
+        // immutable account identifiers available in the legacy system.
+        foreach (var user in stateUsers)
+        {
+            var legacyUser = legacyUsers.FirstOrDefault(item =>
+                !claimedLegacyIds.Contains(item.Id) &&
+                (item.Username.Equals(user.Username, StringComparison.OrdinalIgnoreCase) ||
+                 (!string.IsNullOrWhiteSpace(user.Email) && item.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))));
+            if (legacyUser is null) continue;
+
+            desiredIds[user.Id] = legacyUser.Id;
+            claimedLegacyIds.Add(legacyUser.Id);
+        }
+
+        // State-only accounts are assigned an unused, deterministic ID above
+        // both current ranges. SyncLegacyUsers then inserts that exact ID,
+        // rather than relying on MySQL AUTO_INCREMENT to choose a different
+        // value after the chat message has already been written.
+        var usedDesiredIds = desiredIds.Values.ToHashSet();
+        var nextAvailableId = Math.Max(
+            stateUsers.Count == 0 ? 0 : stateUsers.Max(item => item.Id),
+            legacyUsers.Count == 0 ? 0 : legacyUsers.Max(item => item.Id)) + 1;
+        foreach (var user in stateUsers.Where(item => !desiredIds.ContainsKey(item.Id)))
+        {
+            if (!legacyIds.Contains(user.Id) && !usedDesiredIds.Contains(user.Id))
+            {
+                desiredIds[user.Id] = user.Id;
+                usedDesiredIds.Add(user.Id);
+                continue;
+            }
+
+            while (legacyIds.Contains(nextAvailableId) || usedDesiredIds.Contains(nextAvailableId))
+            {
+                nextAvailableId++;
+            }
+
+            desiredIds[user.Id] = nextAvailableId;
+            usedDesiredIds.Add(nextAvailableId++);
+        }
+
+        var remappedIds = desiredIds
+            .Where(item => item.Key != item.Value)
+            .ToDictionary(item => item.Key, item => item.Value);
+        if (remappedIds.Count > 0)
+        {
+            RemapPersistedUserIds(connection, remappedIds);
+            ApplyUserIdRemapToState(state, remappedIds);
+        }
+
+        foreach (var legacyUser in legacyUsers.Where(item => !claimedLegacyIds.Contains(item.Id)))
+        {
+            state.Users.Add(new UserAccount
+            {
+                Id = legacyUser.Id,
+                Username = legacyUser.Username,
+                Password = legacyUser.Password,
+                Email = legacyUser.Email,
+                Role = string.Equals(legacyUser.Role, "student", StringComparison.OrdinalIgnoreCase) ? "student" : "instructor",
+                CreatedAt = legacyUser.CreatedAt
+            });
+        }
+
+        state.Counters.NextUserId = Math.Max(
+            state.Counters.NextUserId,
+            state.Users.Count == 0 ? 1 : state.Users.Max(item => item.Id) + 1);
+    }
+
+    private void RemapPersistedUserIds(MySqlConnection connection, IReadOnlyDictionary<int, int> remappedIds)
+    {
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            var orderedMappings = remappedIds.OrderBy(item => item.Key).ToList();
+            using (var updateChat = connection.CreateCommand())
+            {
+                updateChat.Transaction = transaction;
+                var senderCases = new List<string>();
+                var recipientCases = new List<string>();
+                var sourceIds = new List<string>();
+                for (var index = 0; index < orderedMappings.Count; index++)
+                {
+                    var sourceParameter = $"@source_{index}";
+                    var destinationParameter = $"@destination_{index}";
+                    senderCases.Add($"WHEN {sourceParameter} THEN {destinationParameter}");
+                    recipientCases.Add($"WHEN {sourceParameter} THEN {destinationParameter}");
+                    sourceIds.Add(sourceParameter);
+                    updateChat.Parameters.AddWithValue(sourceParameter, orderedMappings[index].Key);
+                    updateChat.Parameters.AddWithValue(destinationParameter, orderedMappings[index].Value);
+                }
+
+                updateChat.CommandText = $"""
+                    UPDATE dotnet_chat_messages
+                    SET sender_id = CASE sender_id {string.Join(' ', senderCases)} ELSE sender_id END,
+                        recipient_id = CASE recipient_id {string.Join(' ', recipientCases)} ELSE recipient_id END
+                    WHERE sender_id IN ({string.Join(", ", sourceIds)})
+                       OR recipient_id IN ({string.Join(", ", sourceIds)})
+                    """;
+                updateChat.ExecuteNonQuery();
+            }
+
+            var sessionUpdates = new List<(string Token, SessionInfo Session)>();
+            using (var selectSessions = connection.CreateCommand())
+            {
+                selectSessions.Transaction = transaction;
+                selectSessions.CommandText = "SELECT token, session_json FROM dotnet_sessions";
+                using var reader = selectSessions.ExecuteReader();
+                while (reader.Read())
+                {
+                    var session = JsonSerializer.Deserialize<SessionInfo>(reader.GetString("session_json"), _jsonOptions);
+                    if (session?.UserId is not int userId || !remappedIds.TryGetValue(userId, out var canonicalUserId)) continue;
+
+                    session.UserId = canonicalUserId;
+                    sessionUpdates.Add((reader.GetString("token"), session));
+                }
+            }
+
+            foreach (var update in sessionUpdates)
+            {
+                using var updateSession = connection.CreateCommand();
+                updateSession.Transaction = transaction;
+                updateSession.CommandText = "UPDATE dotnet_sessions SET session_json = @session_json, updated_at = UTC_TIMESTAMP() WHERE token = @token";
+                updateSession.Parameters.AddWithValue("@token", update.Token);
+                updateSession.Parameters.AddWithValue("@session_json", JsonSerializer.Serialize(update.Session, _jsonOptions));
+                updateSession.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    private static void ApplyUserIdRemapToState(AppState state, IReadOnlyDictionary<int, int> remappedIds)
+    {
+        foreach (var user in state.Users)
+        {
+            if (remappedIds.TryGetValue(user.Id, out var canonicalUserId)) user.Id = canonicalUserId;
+        }
+
+        foreach (var access in state.UserPlatformAccess)
+        {
+            if (remappedIds.TryGetValue(access.UserId, out var canonicalUserId)) access.UserId = canonicalUserId;
+        }
+
+        foreach (var activity in state.ActivityLogs)
+        {
+            if (activity.UserId is int userId && remappedIds.TryGetValue(userId, out var canonicalUserId))
+            {
+                activity.UserId = canonicalUserId;
+            }
         }
     }
 
@@ -696,31 +906,32 @@ public sealed class DatabaseStateStorage
 
         foreach (var user in users.Where(item => !string.IsNullOrWhiteSpace(item.Username)))
         {
-            var existingId = FindLegacyId(connection, "users", user.Email, user.Username);
-            using var command = connection.CreateCommand();
-            if (existingId.HasValue)
+            var matchedLegacyId = FindLegacyId(connection, "users", user.Email, user.Username);
+            if (matchedLegacyId.HasValue && matchedLegacyId.Value != user.Id)
             {
-                command.CommandText = """
-                    UPDATE users
-                    SET username = @username, password = @password, email = @email,
-                        role = @role
-                    WHERE id = @id
-                    """;
-                command.Parameters.AddWithValue("@id", existingId.Value);
-            }
-            else
-            {
-                command.CommandText = """
-                    INSERT INTO users (username, password, email, role, created_at)
-                    VALUES (@username, @password, @email, @role, @created_at)
-                    """;
-                command.Parameters.AddWithValue("@created_at", ToDatabaseDate(user.CreatedAt));
+                // Never let an email/username unique key redirect an update to
+                // a different account ID. The next startup reconciliation can
+                // safely resolve an externally-created legacy account.
+                Console.Error.WriteLine("Legacy user synchronization skipped an unresolved account-ID collision.");
+                continue;
             }
 
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO users (id, username, password, email, role, created_at)
+                VALUES (@id, @username, @password, @email, @role, @created_at)
+                ON DUPLICATE KEY UPDATE
+                    username = VALUES(username), password = VALUES(password), email = VALUES(email), role = VALUES(role)
+                """;
+            // The portal always writes the canonical state ID explicitly.
+            // This prevents AUTO_INCREMENT from silently assigning a different
+            // users.id to an account that may subsequently send chat messages.
+            command.Parameters.AddWithValue("@id", user.Id);
             command.Parameters.AddWithValue("@username", user.Username);
             command.Parameters.AddWithValue("@password", user.Password);
             command.Parameters.AddWithValue("@email", user.Email);
             command.Parameters.AddWithValue("@role", ToLegacyUserRole(user.Role));
+            command.Parameters.AddWithValue("@created_at", ToDatabaseDate(user.CreatedAt));
             command.ExecuteNonQuery();
         }
     }
@@ -1068,6 +1279,38 @@ public sealed class DatabaseStateStorage
         alter.ExecuteNonQuery();
     }
 
+    private static bool HasInvalidChatUserReferences(MySqlConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM dotnet_chat_messages AS message
+            LEFT JOIN users AS sender ON sender.id = message.sender_id
+            LEFT JOIN users AS recipient ON recipient.id = message.recipient_id
+            WHERE sender.id IS NULL OR recipient.id IS NULL
+            """;
+        return Convert.ToInt32(command.ExecuteScalar()) > 0;
+    }
+
+    private static void EnsureChatForeignKey(MySqlConnection connection, string constraintName, string columnName)
+    {
+        using var exists = connection.CreateCommand();
+        exists.CommandText = """
+            SELECT COUNT(*)
+            FROM information_schema.table_constraints
+            WHERE table_schema = DATABASE()
+              AND table_name = 'dotnet_chat_messages'
+              AND constraint_name = @constraint_name
+              AND constraint_type = 'FOREIGN KEY'
+            """;
+        exists.Parameters.AddWithValue("@constraint_name", constraintName);
+        if (Convert.ToInt32(exists.ExecuteScalar()) > 0) return;
+
+        using var alter = connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE dotnet_chat_messages ADD CONSTRAINT `{constraintName}` FOREIGN KEY (`{columnName}`) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE RESTRICT";
+        alter.ExecuteNonQuery();
+    }
+
     private static string BuildConnectionString()
     {
         var explicitConnectionString = GetEnv("DB_CONNECTION_STRING");
@@ -1107,4 +1350,12 @@ public sealed class DatabaseStateStorage
 
     private static string GetEnv(string key) =>
         (Environment.GetEnvironmentVariable(key) ?? string.Empty).Trim().Trim('"');
+
+    private sealed record LegacyUserRow(
+        int Id,
+        string Username,
+        string Password,
+        string Email,
+        string Role,
+        DateTime CreatedAt);
 }

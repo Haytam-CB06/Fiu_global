@@ -24,6 +24,12 @@
     <None Remove="deploy-linux-x64\**" />
     <Content Remove="deploy-linux-x64-full\**" />
     <None Remove="deploy-linux-x64-full\**" />
+    <!-- The standalone, dependency-free security harness has its own project. -->
+    <Compile Remove="tests\**\*.cs" />
+    <Content Remove="tests\**\bin\**" />
+    <None Remove="tests\**\bin\**" />
+    <Content Remove="tests\**\obj\**" />
+    <None Remove="tests\**\obj\**" />
   </ItemGroup>
 
 </Project>

@@ -184,12 +184,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const messages = {
             google_config: ['auth.google.config', 'Google login is not configured correctly. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI in .env.'],
             google: ['auth.google.failed', 'Google login failed. Please try again or use your username and password.'],
+            google_cancelled: ['auth.google.cancelled', 'Google sign-in was cancelled. You can start it again when ready.'],
+            google_state: ['auth.google.state', 'Google sign-in could not be verified. Please start the login again.'],
             google_exchange: ['auth.google.exchange', 'Google could not complete the sign-in request. Please start the Google login again.'],
             google_network: ['auth.google.network', 'The local .NET server could not reach Google. Please retry in a moment.'],
             google_timeout: ['auth.google.timeout', 'Google took too long to respond. Please start the login again.'],
             final_domain_required: ['auth.google.finalDomain', 'Google login is restricted to final.edu.tr accounts only.'],
             unauthorized_google: ['auth.google.unauthorized', 'No FIU Global Portal account is linked to this Google email.'],
-            invalid_role: ['auth.google.invalidRole', 'Your account role is not configured. Please contact an administrator.']
+            invalid_role: ['auth.google.invalidRole', 'Your account role is not configured. Please contact an administrator.'],
+            sso_login_required: [null, 'Sign in to FIU Global before opening a secure campus platform.'],
+            session_expired: [null, 'Your 15-minute session expired. Please sign in again.']
         };
 
         const [key, fallback] = messages[error] || ['auth.google.unavailable', 'Unable to complete Google login.'];

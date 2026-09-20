@@ -689,7 +689,53 @@ body.user-portal .chat-contact-preview { color: #71809a; font-size: 11px; font-w
 body.user-portal .chat-contact-meta { display: grid; justify-items: end; gap: 5px; min-width: 30px; }
 body.user-portal .chat-contact-time { color: #8592a7; font-size: 10px; white-space: nowrap; }
 body.user-portal .chat-unread-badge { display: inline-grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 999px; background: #1d70d6; color: #fff; font-size: 10px; font-weight: 900; }
-body.user-portal .chat-contact.has-unread strong { color: #123f78; }
+body.user-portal .chat-contact.has-unread strong,
+body.user-portal .chat-contact.has-unread .chat-contact-preview { color: #123f78; font-weight: 900; }
+body.user-portal .chat-contact.has-unread { background: rgba(225, 237, 252, .72); }
+body.user-portal .user-sidebar-nav button[data-user-view="chat"] { position: relative; }
+body.user-portal .user-sidebar-nav a.user-sidebar-link {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 12px;
+    color: #24324a;
+    font: inherit;
+    font-weight: 800;
+    text-align: left;
+    text-decoration: none;
+}
+body.user-portal .user-sidebar-nav a.user-sidebar-link i { width: 18px; color: #60708b; text-align: center; }
+body.user-portal .user-sidebar-nav a.user-sidebar-link:hover,
+body.user-portal .user-sidebar-nav a.user-sidebar-link.active { background: #15396d; color: #fff; }
+body.user-portal .user-sidebar-nav a.user-sidebar-link:hover i,
+body.user-portal .user-sidebar-nav a.user-sidebar-link.active i { color: #fff; }
+body.dark-mode.user-portal .user-sidebar-nav a.user-sidebar-link { color: #edf3ff; }
+body.user-portal .chat-nav-unread {
+    display: inline-grid;
+    flex: 0 0 24px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    padding: 0;
+    margin-left: auto;
+    place-items: center;
+    border-radius: 999px;
+    background: #e3343f !important;
+    color: #fff !important;
+    border: 2px solid #fff;
+    box-shadow: 0 3px 10px rgba(176, 24, 42, .35);
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    overflow: visible;
+    white-space: nowrap;
+}
+body.user-portal .chat-nav-unread[hidden] { display: none; }
+body.user-portal.user-sidebar-collapsed .user-sidebar-nav button span.chat-nav-unread { display: inline-grid !important; }
+body.user-portal.user-sidebar-collapsed .user-sidebar-nav button span.chat-nav-unread[hidden] { display: none !important; }
 
 body.dark-mode.user-portal .dashboard-focus-card { border-color: rgba(255,255,255,.12); background: rgba(15, 31, 53, .84); }
 body.dark-mode.user-portal .dashboard-focus-card-heading h2,
@@ -714,7 +760,14 @@ body.dark-mode.user-portal .custom-notification.error { --portal-toast-bg: #4a24
 body.dark-mode.user-portal .custom-notification.warning { --portal-toast-bg: #4a3b1d; --portal-toast-text: #fff8e5; --portal-toast-border: #d6ad52; }
 body.dark-mode.user-portal .chat-contact-preview,
 body.dark-mode.user-portal .chat-contact-time { color: #b9c9de; }
-body.dark-mode.user-portal .chat-contact.has-unread strong { color: #fff; }
+body.dark-mode.user-portal .chat-contact.has-unread { background: rgba(116, 170, 244, .16); }
+body.dark-mode.user-portal .chat-contact.has-unread strong,
+body.dark-mode.user-portal .chat-contact.has-unread .chat-contact-preview { color: #fff; }
+body.dark-mode.user-portal .chat-nav-unread { background: #e45d6f; }
+
+/* The platforms route is a focused service catalogue. The dashboard-only
+   dining and announcement summaries stay on the main dashboard. */
+body.user-portal.portal-view-platforms #dashboard-focus-grid { display: none !important; }
 
 /* Dark-mode annotation targets: headings are text surfaces, not pills. */
 body.dark-mode.user-portal .most-accessed-platforms-heading h2,
@@ -829,5 +882,401 @@ body.dark-mode.user-portal .profile-page-picture-button:focus-visible img {
 @media (max-width: 620px) {
     body.user-portal .dashboard-hero-grid .dashboard-focus-grid {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Final shared responsive layer ------------------------------------------
+   Keep every portal route usable at phone width, including the archive page
+   which lives in the same shell but has its own content grid. */
+body.user-portal,
+body.user-portal main,
+body.user-portal .portal-with-sidebar,
+body.user-portal .sections-container,
+body.user-portal .section,
+body.user-portal .dashboard-hero-grid,
+body.user-portal .dashboard-focus-grid,
+body.user-portal .archive-grid,
+body.user-portal .chat-layout,
+body.user-portal .platforms-panel {
+    min-width: 0;
+}
+
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active:visited {
+    background: #15396d !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active span,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active i {
+    color: #fff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+body.user-portal .dashboard-focus-announcement {
+    position: relative;
+    border: 1px solid transparent;
+}
+
+body.user-portal .dashboard-focus-announcement.is-important {
+    border-color: rgba(205, 42, 57, .36);
+    background: #fff1f2;
+    box-shadow: inset 3px 0 0 #d82f45;
+}
+
+body.user-portal .announcement-priority-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+    margin-bottom: 6px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #fff;
+    color: #ec1818 !important;
+    border: 1px solid rgba(236, 24, 24, .38);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+body.user-portal .announcement-card.is-important {
+    border-color: rgba(205, 42, 57, .34);
+    box-shadow: inset 4px 0 0 #d82f45, 0 12px 24px rgba(205, 42, 57, .10);
+}
+
+body.dark-mode.user-portal .dashboard-focus-announcement.is-important {
+    border-color: rgba(255, 119, 133, .5);
+    background: rgba(151, 35, 54, .28);
+}
+
+body.archive-page .archive-week,
+body.archive-page .archive-week-days,
+body.archive-page .archive-week-day,
+body.archive-page .archive-day-heading,
+body.archive-page .archive-meal-grid,
+body.archive-page .archive-meal {
+    min-width: 0 !important;
+}
+
+body.archive-page .archive-week {
+    overflow: visible !important;
+}
+
+body.archive-page .archive-week-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+}
+
+body.archive-page .archive-week-title {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+body.archive-page .archive-week-header strong {
+    display: block !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+}
+
+body.archive-page .archive-week-count {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+}
+
+body.archive-page .archive-week-days {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+}
+
+body.archive-page .archive-week-day {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 13px !important;
+    padding: 16px !important;
+    border-bottom: 0 !important;
+}
+
+body.archive-page .archive-day-heading {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: start !important;
+    gap: 10px !important;
+    margin: 0 !important;
+}
+
+body.archive-page .archive-day-heading strong {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.3 !important;
+}
+
+body.archive-page .archive-day-heading span {
+    justify-self: end !important;
+    white-space: nowrap !important;
+}
+
+body.archive-page .archive-meal-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+}
+
+body.archive-page .archive-meal {
+    display: flex !important;
+    min-height: 76px !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    overflow: hidden !important;
+}
+
+body.archive-page .archive-meal p {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+
+@media (max-width: 900px) {
+    body.user-portal .portal-with-sidebar {
+        width: calc(100% - 24px) !important;
+        max-width: none !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    body.user-portal .user-sidebar {
+        width: 100% !important;
+        min-height: 0 !important;
+        padding: 12px !important;
+        overflow-x: auto !important;
+    }
+
+    body.user-portal .user-sidebar-brand { display: none !important; }
+
+    body.user-portal .user-sidebar-nav {
+        display: flex !important;
+        align-items: stretch !important;
+        width: max-content !important;
+        min-width: 100% !important;
+        gap: 7px !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link,
+    body.user-portal .user-sidebar-granted > a {
+        width: auto !important;
+        min-width: max-content !important;
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+    }
+
+    body.user-portal .user-sidebar-granted {
+        display: flex !important;
+        align-items: stretch !important;
+        gap: 7px !important;
+    }
+
+    body.user-portal .dashboard-hero-grid,
+    body.user-portal .chat-layout,
+    body.archive-page .archive-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.user-portal .chat-contacts,
+    body.user-portal .chat-conversation,
+    body.user-portal .profile-page-form,
+    body.user-portal .dashboard-focus-grid,
+    body.user-portal .platform-section-grid,
+    body.archive-page .archive-panel {
+        min-width: 0 !important;
+    }
+
+    body.user-portal .platform-section-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.archive-page .archive-filter-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.archive-page .archive-result-count {
+        justify-self: start !important;
+    }
+}
+
+@media (max-width: 620px) {
+    html,
+    body.user-portal {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    body.user-portal header {
+        width: calc(100% - 16px) !important;
+        margin: 8px auto !important;
+        padding: 10px !important;
+        gap: 9px !important;
+    }
+
+    body.user-portal header .logo {
+        flex: 0 0 42px !important;
+        width: 42px !important;
+    }
+
+    body.user-portal header .logo img {
+        width: 42px !important;
+        height: 42px !important;
+    }
+
+    body.user-portal .header-title-section {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    body.user-portal .header-title-section h1 {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        font-size: 1rem !important;
+    }
+
+    body.user-portal #user-info {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body.user-portal .header-right {
+        min-width: 0 !important;
+        flex: 0 0 auto !important;
+    }
+
+    body.user-portal .user-dropdown-btn {
+        max-width: 132px !important;
+        padding-inline: 8px !important;
+    }
+
+    body.user-portal .user-dropdown-btn span {
+        max-width: 72px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body.user-portal .dashboard-overview-actions,
+    body.user-portal .platform-section-grid,
+    body.user-portal .dashboard-focus-meals,
+    body.archive-page .archive-meal-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.user-portal .dashboard-overview-action {
+        min-height: 56px !important;
+    }
+
+    body.user-portal .platforms-panel,
+    body.user-portal .most-accessed-platforms,
+    body.user-portal .section,
+    body.archive-page .archive-panel {
+        padding: 16px !important;
+        border-radius: 18px !important;
+    }
+
+    body.user-portal .profile-page-heading {
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+
+    body.user-portal .profile-page-form {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.user-portal .profile-page-form button {
+        width: 100% !important;
+    }
+
+    body.user-portal .campus-chat-form {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+    }
+
+    body.user-portal .campus-chat-form button {
+        width: auto !important;
+        margin: 0 !important;
+    }
+
+    body.archive-page .archive-week-header {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    body.archive-page .archive-week-count {
+        align-self: flex-start !important;
+    }
+
+    body.archive-page .archive-week-days {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.archive-page .archive-day-heading {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.archive-page .archive-day-heading span {
+        justify-self: start !important;
+    }
+}
+
+/* Account menu layering and sizing --------------------------------------
+   The compact portal shell sits immediately below the header on phones. Keep
+   the open account menu above that shell and give every menu item the full
+   usable menu width instead of letting the grid shrink to its label. */
+body.user-portal header {
+    position: relative !important;
+    z-index: 200 !important;
+    isolation: isolate;
+}
+
+body.user-portal .user-dropdown {
+    position: relative !important;
+    z-index: 210 !important;
+}
+
+body.user-portal .user-dropdown-content {
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: stretch !important;
+    width: min(280px, calc(100vw - 24px)) !important;
+    min-width: 0 !important;
+}
+
+body.user-portal .user-dropdown-content > button,
+body.user-portal .user-dropdown-content > a,
+body.user-portal .user-dropdown-content > .language-switcher,
+body.user-portal .user-dropdown-content .language-btn,
+body.user-portal .user-dropdown-content .theme-btn {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+@media (max-width: 620px) {
+    body.user-portal .user-dropdown-content {
+        top: calc(100% + 8px) !important;
+        right: 0 !important;
     }
 }

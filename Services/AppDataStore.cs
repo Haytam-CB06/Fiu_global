@@ -166,7 +166,7 @@ public sealed class AppDataStore
                 AdminRole = admin?.Role,
                 PreferredLanguage = LocalizationService.NormalizeLanguage(user.PreferredLanguage),
                 LastSeenAt = now,
-                ExpiresAt = now.AddHours(8)
+                ExpiresAt = now.Add(SessionPolicy.Lifetime)
             };
             _sessions[session.Token] = session;
             AddActivityInternal(user.Id, user.Username, user.Role, "user_login", admin is null ? "User signed in" : "User/admin signed in");
@@ -190,7 +190,7 @@ public sealed class AppDataStore
                 AdminRole = admin.Role,
                 PreferredLanguage = LocalizationService.NormalizeLanguage(admin.PreferredLanguage),
                 LastSeenAt = now,
-                ExpiresAt = now.AddHours(8)
+                ExpiresAt = now.Add(SessionPolicy.Lifetime)
             };
             _sessions[session.Token] = session;
             AddActivityInternal(admin.Id, admin.Username, admin.Role, "admin_login", "Admin signed in");
@@ -221,8 +221,37 @@ public sealed class AppDataStore
             }
 
             var now = DateTime.UtcNow;
+            // Sessions created before the 15-minute policy was introduced may
+            // still carry the old eight-hour expiry. Bring them onto the same
+            // policy the next time they are observed.
+            if (session.ExpiresAt > now.Add(SessionPolicy.Lifetime))
+            {
+                session.ExpiresAt = now.Add(SessionPolicy.Lifetime);
+            }
+
             session.LastSeenAt = now;
-            session.ExpiresAt = now.AddHours(8);
+            TrySaveSession(session);
+            return Clone(session);
+        }
+    }
+
+    public SessionInfo? ContinueSession(string? token, TimeSpan lifetime)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            if (!_sessions.TryGetValue(token, out var session) || session.ExpiresAt <= DateTime.UtcNow)
+            {
+                return null;
+            }
+
+            var now = DateTime.UtcNow;
+            session.LastSeenAt = now;
+            session.ExpiresAt = now.Add(lifetime);
             TrySaveSession(session);
             return Clone(session);
         }
@@ -757,6 +786,16 @@ public sealed class AppDataStore
         {
             var user = _state.Users.FirstOrDefault(item => item.Id == id);
             if (user is null) return new OperationResult(false, "User account not found.");
+            var email = body.GetString("email").Trim();
+            if (!IsFinalEduEmail(email))
+            {
+                return new OperationResult(false, "Use a valid @final.edu.tr email address.");
+            }
+            if (_state.Users.Any(item => item.Id != id && item.Email.Equals(email, StringComparison.OrdinalIgnoreCase)) ||
+                _state.Admins.Any(item => item.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new OperationResult(false, "Email already exists.");
+            }
             if (!TryResolveAffiliation(body, out var facultyId, out var departmentId, out var facultyName, out var departmentName, out var affiliationError))
             {
                 return new OperationResult(false, affiliationError);
@@ -764,6 +803,7 @@ public sealed class AppDataStore
             user.StudentNumber = body.GetString("student_number").Trim();
             user.FirstName = body.GetString("first_name").Trim();
             user.LastName = body.GetString("last_name").Trim();
+            user.Email = email;
             if (body.ContainsKey("profile_picture")) user.ProfilePicture = body.GetString("profile_picture").Trim();
             user.FacultyId = facultyId;
             user.DepartmentId = departmentId;
@@ -1551,6 +1591,50 @@ public sealed class AppDataStore
         }
     }
 
+    /// <summary>
+    /// Sends one controlled sample for each automated email category. This is
+    /// intentionally admin-triggered and uses only SMTP_TEST_RECIPIENT from
+    /// server-side environment configuration; the endpoint never accepts an
+    /// arbitrary recipient address from the browser.
+    /// </summary>
+    public OperationResult SendSmtpNotificationTests()
+    {
+        lock (_gate)
+        {
+            var testRecipient = Environment.GetEnvironmentVariable("SMTP_TEST_RECIPIENT")?.Trim();
+            if (string.IsNullOrWhiteSpace(testRecipient))
+            {
+                return new OperationResult(false, "SMTP_TEST_RECIPIENT is not configured");
+            }
+
+            if (!IsSmtpConfigured(_state.Smtp))
+            {
+                return new OperationResult(false, "SMTP is not configured");
+            }
+
+            var samples = new[]
+            {
+                ("[TEST] [HIGH PRIORITY] FIU Global announcement", "This is a test of the high-priority announcement email notification.", MailPriority.High),
+                ("[TEST] Unread FIU Global chat message", "This is a test of the 24-hour unread chat-message reminder email notification.", MailPriority.Normal),
+                ("[TEST] New FIU Global dining menu", "This is a test of the new dining-menu email notification.", MailPriority.Normal)
+            };
+
+            foreach (var sample in samples)
+            {
+                if (SendEmailInternal([testRecipient], sample.Item1, sample.Item2, sample.Item3) != 1)
+                {
+                    AddActivityInternal(null, "system", "admin", "smtp_test_notifications_failed", "SMTP test notification failed");
+                    Save();
+                    return new OperationResult(false, "Unable to send SMTP test notification");
+                }
+            }
+
+            AddActivityInternal(null, "system", "admin", "smtp_test_notifications_sent", "Three SMTP test notifications sent");
+            Save();
+            return new OperationResult(true);
+        }
+    }
+
     public void TrackActivity(string username, string role, string action, string detail)
     {
         lock (_gate)
@@ -1603,7 +1687,8 @@ public sealed class AppDataStore
             var archiveCutoff = DateTime.UtcNow.AddDays(-50);
             return _state.Announcements
                 .Where(item => item.IsActive && item.CreatedAt >= archiveCutoff)
-                .OrderByDescending(item => item.CreatedAt)
+                .OrderByDescending(item => AnnouncementPriorityRank(item.Priority))
+                .ThenByDescending(item => item.CreatedAt)
                 .Select(item => (object)ToAnnouncementDto(item))
                 .ToList();
         }
@@ -1662,7 +1747,10 @@ public sealed class AppDataStore
                 $"New announcement: {announcement.Title}",
                 "#announcements-section",
                 NotificationRolesForAudience(targetAudience));
-            SendAnnouncementEmailInternal(announcement);
+            if (AnnouncementPriorityRank(announcement.Priority) >= 3)
+            {
+                SendAnnouncementEmailInternal(announcement);
+            }
             Save();
             return true;
         }
@@ -1837,7 +1925,7 @@ public sealed class AppDataStore
                 return 0;
             }
 
-            reminders = _database.GetUnansweredChatReminderCandidates(DateTimeOffset.UtcNow.AddHours(-48))
+            reminders = _database.GetUnansweredChatReminderCandidates(DateTimeOffset.UtcNow.AddHours(-24))
                 .Select(candidate =>
                 {
                     var recipient = _state.Users.FirstOrDefault(item => item.Id == candidate.RecipientId);
@@ -1884,7 +1972,7 @@ public sealed class AppDataStore
                     sent++;
                     lock (_gate)
                     {
-                        AddActivityInternal(reminder.Recipient.Id, reminder.Recipient.Username, reminder.Recipient.Role, "chat_reply_reminder_sent", reminder.Candidate.MessageId);
+                        AddActivityInternal(reminder.Recipient.Id, reminder.Recipient.Username, reminder.Recipient.Role, "chat_reply_reminder_sent", "Email notification sent");
                         Save();
                     }
                 }
@@ -1938,6 +2026,7 @@ public sealed class AppDataStore
         {
             var imported = 0;
             var importedDates = new List<DateOnly>();
+            var newlyPublishedDates = new List<DateOnly>();
             var errors = new List<string>();
             var conflicts = new List<object>();
             var skipped = new List<string>();
@@ -2002,6 +2091,7 @@ public sealed class AppDataStore
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
+                    newlyPublishedDates.Add(date);
                 }
                 else
                 {
@@ -2034,6 +2124,10 @@ public sealed class AppDataStore
                         .Where(item => (item.SectionAccessConfigured ? item.AllowedSections : GetAllowedSectionsForRole(item.Role))
                             .Contains("dining-menu", StringComparer.OrdinalIgnoreCase))
                         .Select(item => item.Role));
+            }
+            if (newlyPublishedDates.Count > 0)
+            {
+                SendDiningMenuEmailInternal(newlyPublishedDates);
             }
             AddActivityInternal(actorId, actorName, admin?.Role ?? user!.Role, "dining_import", $"{imported} menus imported");
             Save();
@@ -2090,6 +2184,7 @@ public sealed class AppDataStore
                     $"A new dining menu is available for {date:MMMM d, yyyy}.",
                     "#dining-menu-section",
                     ["student", "instructor"]);
+                SendDiningMenuEmailInternal([date]);
             }
 
             Save();
@@ -2439,6 +2534,7 @@ public sealed class AppDataStore
         }
         MigrateState();
         Save();
+        _database.EnsureChatUserForeignKeys();
     }
 
     private void MigrateState()
@@ -3115,10 +3211,46 @@ public sealed class AppDataStore
 
     private void SendAnnouncementEmailInternal(AnnouncementItem announcement)
     {
-        if (string.IsNullOrWhiteSpace(_state.Smtp.Host) || string.IsNullOrWhiteSpace(_state.Smtp.FromEmail))
+        if (AnnouncementPriorityRank(announcement.Priority) < 3)
         {
-            AddActivityInternal(announcement.AuthorId, announcement.AuthorName, "admin", "email_skipped", "SMTP is not configured");
             return;
+        }
+
+        var recipients = _state.Users
+            .Where(item => NotificationRolesForAudience(announcement.TargetAudience)
+                .Contains(item.Role, StringComparer.OrdinalIgnoreCase))
+            .Select(item => item.Email);
+        var sent = SendEmailInternal(
+            recipients,
+            $"[HIGH PRIORITY] {announcement.Title}",
+            $"A high-priority announcement was posted in FIU Global Portal.\n\n{announcement.Title}\n\n{announcement.Content}\n\nOpen FIU Global Portal to view the announcement.",
+            MailPriority.High);
+        RecordEmailDeliveryResult(announcement.AuthorId, announcement.AuthorName, "high_priority_announcement_email", sent);
+    }
+
+    private void SendDiningMenuEmailInternal(IEnumerable<DateOnly> dates)
+    {
+        var publishedDates = dates.Distinct().OrderBy(item => item).ToList();
+        if (publishedDates.Count == 0) return;
+
+        var dateSummary = string.Join(", ", publishedDates.Take(3).Select(item => item.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)));
+        if (publishedDates.Count > 3) dateSummary += " and more";
+        var recipients = _state.Users
+            .Where(item => GetEffectiveSectionsForUser(item).Contains("dining-menu", StringComparer.OrdinalIgnoreCase))
+            .Select(item => item.Email);
+        var sent = SendEmailInternal(
+            recipients,
+            publishedDates.Count == 1 ? "New FIU Global dining menu" : "New FIU Global dining menus",
+            $"A new dining menu is available for {dateSummary}.\n\nOpen FIU Global Portal to view the full menu and meal times.",
+            MailPriority.Normal);
+        RecordEmailDeliveryResult(null, "system", "dining_menu_email", sent);
+    }
+
+    private int SendEmailInternal(IEnumerable<string> emailAddresses, string subject, string body, MailPriority priority)
+    {
+        if (!IsSmtpConfigured(_state.Smtp))
+        {
+            return 0;
         }
 
         try
@@ -3132,24 +3264,74 @@ public sealed class AppDataStore
                 client.Credentials = new NetworkCredential(_state.Smtp.Username, _state.Smtp.Password);
             }
 
-            foreach (var user in _state.Users.Where(item => !string.IsNullOrWhiteSpace(item.Email)))
+            var recipients = NormalizeEmailAddresses(emailAddresses);
+            foreach (var recipient in recipients)
             {
                 using var message = new MailMessage
                 {
                     From = new MailAddress(_state.Smtp.FromEmail, _state.Smtp.FromName),
-                    Subject = announcement.Title,
-                    Body = announcement.Content
+                    Subject = subject,
+                    Body = body,
+                    Priority = priority
                 };
-                message.To.Add(user.Email);
+                if (priority == MailPriority.High)
+                {
+                    message.Headers.Add("X-Priority", "1");
+                    message.Headers.Add("Importance", "High");
+                }
+                message.To.Add(recipient);
                 client.Send(message);
             }
-
-            AddActivityInternal(announcement.AuthorId, announcement.AuthorName, "admin", "email_sent", announcement.Title);
+            return recipients.Count;
         }
-        catch (Exception ex)
+        catch
         {
-            AddActivityInternal(announcement.AuthorId, announcement.AuthorName, "admin", "email_error", ex.Message);
+            // SMTP/provider diagnostics may contain recipient and server data.
+            // Keep those details out of activity logs and API responses.
+            return -1;
         }
+    }
+
+    private void RecordEmailDeliveryResult(int? actorId, string actorName, string action, int sent)
+    {
+        if (sent > 0)
+        {
+            AddActivityInternal(actorId, actorName, "admin", action, "Email notification sent");
+        }
+        else if (sent < 0)
+        {
+            AddActivityInternal(actorId, actorName, "admin", $"{action}_failed", "Email notification failed");
+        }
+        else if (!IsSmtpConfigured(_state.Smtp))
+        {
+            AddActivityInternal(actorId, actorName, "admin", $"{action}_skipped", "SMTP is not configured");
+        }
+    }
+
+    private static bool IsSmtpConfigured(SmtpSettings smtp) =>
+        !string.IsNullOrWhiteSpace(smtp.Host) && !string.IsNullOrWhiteSpace(smtp.FromEmail);
+
+    private static List<string> NormalizeEmailAddresses(IEnumerable<string> emailAddresses)
+    {
+        var recipients = new List<string>();
+        foreach (var candidate in emailAddresses.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()))
+        {
+            try
+            {
+                var parsed = new MailAddress(candidate);
+                if (!recipients.Contains(parsed.Address, StringComparer.OrdinalIgnoreCase))
+                {
+                    recipients.Add(parsed.Address);
+                }
+            }
+            catch (FormatException)
+            {
+                // A malformed profile email is skipped without exposing it in
+                // logs; the account can be corrected through the profile form.
+            }
+        }
+
+        return recipients;
     }
 
     private static bool PasswordMatches(string input, string stored)
@@ -3389,6 +3571,24 @@ public sealed class AppDataStore
         created_at = item.CreatedAt,
         updated_at = item.UpdatedAt
     };
+
+    private static int AnnouncementPriorityRank(string? priority) =>
+        priority?.Trim().ToLowerInvariant() switch
+        {
+            "urgent" => 4,
+            "high" => 3,
+            "medium" => 2,
+            "low" => 1,
+            _ => 2
+        };
+
+    private static bool IsFinalEduEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || email.Any(char.IsWhiteSpace)) return false;
+        var at = email.LastIndexOf('@');
+        return at > 0 && at == email.IndexOf('@') &&
+               email[(at + 1)..].Equals("final.edu.tr", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool AnnouncementVisibleToRole(AnnouncementItem item, string role)
     {

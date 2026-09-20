@@ -22,8 +22,13 @@ function archiveCount(key, count, englishSingular, englishPlural) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const userLabel = document.getElementById('archive-user');
-    const dashboardLink = document.getElementById('dashboard-link');
+    const userLabel = document.getElementById('username');
+    const headerProfileName = document.getElementById('header-profile-name');
+    const headerProfileAvatar = document.getElementById('header-profile-avatar');
+    const sidebarRole = document.getElementById('user-sidebar-role');
+    const sidebarGranted = document.getElementById('archive-sidebar-granted');
+    const userDropdownBtn = document.getElementById('user-dropdown-btn');
+    const userDropdown = document.getElementById('user-dropdown-content');
     const logoutBtn = document.getElementById('logout-btn');
     const themeBtn = document.getElementById('dark-mode-btn');
     const themeText = document.getElementById('current-theme');
@@ -40,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     initTheme();
+    setupAccountMenu();
     setupArchiveCollection('announcements', announcementsContainer, archiveT('archive.searchAnnouncements', 'Search announcements by title, message, or date'));
     setupArchiveCollection('dining', diningContainer, archiveT('archive.searchDining', 'Search dining menus by date, breakfast, or lunch'));
     hydrateSession();
@@ -59,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('languageChanged', () => {
         updateThemeText();
+        try { renderSidebar(JSON.parse(localStorage.getItem('user') || 'null')); } catch (_) {}
         document.querySelectorAll('[data-archive-controls] input').forEach(input => {
             input.placeholder = input.dataset.archiveControls === 'dining'
                 ? archiveT('archive.searchDining', 'Search dining menus by date, breakfast, or lunch')
@@ -84,15 +91,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localStorage.setItem('user', JSON.stringify(data.user));
             if (userLabel) {
-                userLabel.textContent = `${data.user.username} · ${data.user.role}`;
+                userLabel.textContent = archiveT('portal.welcomeUser', 'Welcome, {name}', { name: data.user.username || archiveT('common.user', 'User') });
             }
-            if (dashboardLink) {
-                dashboardLink.href = getDashboardPath(data.user.role);
+            if (headerProfileName) {
+                headerProfileName.textContent = [data.user.first_name, data.user.last_name].filter(Boolean).join(' ').trim() || data.user.username || archiveT('common.account', 'Account');
             }
+            if (headerProfileAvatar) {
+                headerProfileAvatar.src = data.user.profile_picture || '/img/fiu9-mark2.png';
+                headerProfileAvatar.onerror = () => { headerProfileAvatar.src = '/img/fiu9-mark2.png'; };
+            }
+            if (sidebarRole) sidebarRole.textContent = `${String(data.user.role || 'user').replace(/[-_]/g, ' ')} ${archiveT('portal.portal', 'portal')}`;
+            renderSidebar(data.user);
 
             loadArchive();
+            loadChatUnread();
         } catch (_) {
             window.location.replace('/login.html');
+        }
+    }
+
+    function setupAccountMenu() {
+        userDropdownBtn?.addEventListener('click', event => {
+            event.stopPropagation();
+            const open = !userDropdown?.classList.contains('show');
+            userDropdown?.classList.toggle('show', open);
+            userDropdownBtn.setAttribute('aria-expanded', String(open));
+        });
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.user-dropdown')) {
+                userDropdown?.classList.remove('show');
+                userDropdownBtn?.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    function renderSidebar(user) {
+        if (!sidebarGranted) return;
+        const labels = {
+            platforms: ['fa-layer-group', archiveT('navigation.platforms', 'Platforms')],
+            announcements: ['fa-bullhorn', archiveT('navigation.announcements', 'Announcements')],
+            'dining-menu': ['fa-utensils', archiveT('navigation.diningMenu', 'Dining menu')]
+        };
+        const allowed = Array.isArray(user?.allowed_sections)
+            ? user.allowed_sections.map(section => String(section).toLowerCase())
+            : Object.keys(labels);
+        sidebarGranted.innerHTML = allowed.filter(section => labels[section]).map(section => {
+            const [icon, label] = labels[section];
+            return `<a class="user-sidebar-link" href="/student_dashboard/${section}"><i class="fas ${icon}"></i><span>${escapeHtml(label)}</span></a>`;
+        }).join('');
+    }
+
+    async function loadChatUnread() {
+        const badge = document.getElementById('archive-chat-unread');
+        if (!badge) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}?endpoint=chat-users`, { credentials: 'same-origin' });
+            const data = await response.json();
+            const count = Array.isArray(data.users)
+                ? data.users.reduce((total, contact) => total + (Number(contact.unread_count) || 0), 0)
+                : 0;
+            badge.hidden = count === 0;
+            badge.textContent = count > 99 ? '99+' : String(count);
+            badge.title = count ? `${count} unread chat message${count === 1 ? '' : 's'}` : '';
+            badge.setAttribute('aria-label', count ? `${count} unread chat message${count === 1 ? '' : 's'}` : 'No unread chat messages');
+        } catch (_) {
+            badge.hidden = true;
         }
     }
 
@@ -307,9 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getDashboardPath(role) {
-        return String(role || '').toLowerCase() === 'instructor'
-            ? '/instructor_dashboard'
-            : '/student_dashboard';
+        return '/student_dashboard';
     }
 
     function initTheme() {

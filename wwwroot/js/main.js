@@ -211,7 +211,10 @@ document.addEventListener('DOMContentLoaded', function() {
         currentUserId: null,
         loadingContactId: null,
         historyRequestId: 0,
-        receiptStates: new Map()
+        receiptStates: new Map(),
+        contactsRefreshTimer: null,
+        contactsRefreshInFlight: false,
+        contactsRefreshQueued: false
     };
 
     let platformCatalog = [];
@@ -267,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!destination || button.hidden) return;
                 if (destination.classList.contains('hidden')) {
                     const sectionById = {
+                        'platforms-section': 'platforms',
                         'dining-menu-section': 'dining-menu',
                         'announcements-section': 'announcements'
                     };
@@ -384,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             if (!data.success) throw new Error(portalApiText(data, portalT('profile.unavailable', 'Profile unavailable.')));
             const profile = data.profile || {};
-            ['student_number', 'first_name', 'last_name'].forEach(key => {
+            ['student_number', 'first_name', 'last_name', 'email'].forEach(key => {
                 const field = document.getElementById(`profile-page-${key}`);
                 if (field) field.value = profile[key] || '';
             });
@@ -696,9 +700,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.add(viewClass);
         document.querySelectorAll('#user-sidebar-nav [data-user-view]').forEach(button => button.classList.toggle('active', button.dataset.userView === view && (!sectionKey || button.dataset.sectionKey === sectionKey)));
         const showDashboard = view === 'dashboard' || (view === 'section' && sectionKey === 'platforms');
+        const isPlatformsRoute = view === 'section' && sectionKey === 'platforms';
         const showDining = canUseDining && view === 'section' && sectionKey === 'dining-menu';
         const showAnnouncements = canUseAnnouncements && view === 'section' && sectionKey === 'announcements';
         dashboard?.classList.toggle('hidden', !showDashboard);
+        elements.dashboardFocusGrid?.classList.toggle('hidden', isPlatformsRoute);
         chat?.classList.toggle('hidden', view !== 'chat');
         profile?.classList.toggle('hidden', view !== 'profile');
         dining?.classList.toggle('hidden', !showDining);
@@ -742,15 +748,60 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadChatContacts() {
         const list = document.getElementById('chat-contacts-list');
         if (!list) return;
+        if (chatState.contactsRefreshInFlight) {
+            chatState.contactsRefreshQueued = true;
+            return;
+        }
+        chatState.contactsRefreshInFlight = true;
         try {
             const response = await fetch(`${API_BASE_URL}?endpoint=chat-users`, { credentials: 'same-origin' });
             const data = await response.json();
             if (!response.ok || !data.success) throw new Error(portalApiText(data, portalT('validation.unableToLoad', 'Unable to load people', { resource: portalT('chat.people', 'people') })));
-            chatState.contacts = Array.isArray(data.users) ? data.users : [];
-            renderChatContacts();
+            const previousById = new Map(chatState.contacts.map(contact => [Number(contact.id), contact]));
+            const incoming = Array.isArray(data.users) ? data.users : [];
+            chatState.contacts = incoming.map(contact => ({ ...previousById.get(Number(contact.id)), ...contact }));
+            if (chatState.activeContact) {
+                chatState.activeContact = chatState.contacts.find(contact => Number(contact.id) === Number(chatState.activeContact.id)) || null;
+            }
+            renderChatContacts(document.getElementById('chat-contact-search')?.value || '');
+            updateChatUnreadIndicator();
         } catch (error) {
             list.innerHTML = `<p class="chat-empty-state">${escapePortalHtml(error.message || portalT('validation.unableToLoad', 'Unable to load people', { resource: portalT('chat.people', 'people') }))}</p>`;
+        } finally {
+            chatState.contactsRefreshInFlight = false;
+            if (chatState.contactsRefreshQueued && chatState.currentUserId) {
+                chatState.contactsRefreshQueued = false;
+                loadChatContacts();
+            } else {
+                chatState.contactsRefreshQueued = false;
+            }
         }
+    }
+
+    function startChatContactRefresh() {
+        if (chatState.contactsRefreshTimer) return;
+        chatState.contactsRefreshTimer = window.setInterval(() => {
+            if (document.visibilityState !== 'hidden' && chatState.currentUserId) loadChatContacts();
+        }, 15000);
+    }
+
+    function updateChatUnreadIndicator() {
+        const button = document.querySelector('#user-sidebar-nav [data-user-view="chat"]');
+        if (!button) return;
+        let badge = button.querySelector('[data-chat-nav-unread]');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'chat-nav-unread';
+            badge.dataset.chatNavUnread = '';
+            badge.setAttribute('aria-live', 'polite');
+            button.appendChild(badge);
+        }
+        const count = chatState.contacts.reduce((total, contact) => total + (Number(contact.unread_count) || 0), 0);
+        badge.hidden = count === 0;
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.title = count ? `${count} unread chat message${count === 1 ? '' : 's'}` : '';
+        badge.setAttribute('aria-label', count ? `${count} unread chat message${count === 1 ? '' : 's'}` : 'No unread chat messages');
+        button.classList.toggle('has-chat-unread', count > 0);
     }
 
     function renderChatContacts(filter = '') {
@@ -762,16 +813,18 @@ document.addEventListener('DOMContentLoaded', function() {
             .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
         if (!contacts.length) {
             list.innerHTML = `<p class="chat-empty-state">${portalT('chat.noUsers', 'No users found.')}</p>`;
+            updateChatUnreadIndicator();
             return;
         }
         list.innerHTML = contacts.map(contact => {
             const unread = Number(contact.unread_count) || 0;
-            const preview = contact.last_message ? contact.last_message : portalT('chat.startConversation', 'Start a conversation');
+            const preview = contact.last_message ? contact.last_message : portalT('chat.noMessages', 'No messages yet');
             const time = formatChatContactTime(contact.last_message_at);
             const unreadLabel = unread ? portalT('chat.unread', '{count} unread messages', { count: unread }) : '';
             return `<button type="button" class="chat-contact${chatState.activeContact?.id === contact.id ? ' active' : ''}${unread ? ' has-unread' : ''}" data-chat-contact-id="${contact.id}" aria-label="Chat with ${escapePortalHtml(contact.name || contact.username)}${unread ? `, ${escapePortalHtml(unreadLabel)}` : ''}"><img src="${escapePortalHtml(contact.profile_picture || '/img/fiu9-mark2.png')}" alt=""><span class="chat-contact-copy"><strong>${escapePortalHtml(contact.name || contact.username)}</strong><small class="chat-contact-preview">${escapePortalHtml(preview)}</small></span><span class="chat-contact-meta">${time ? `<time class="chat-contact-time">${escapePortalHtml(time)}</time>` : ''}${unread ? `<span class="chat-unread-badge">${unread > 99 ? '99+' : unread}</span>` : ''}</span></button>`;
         }).join('');
         list.querySelectorAll('[data-chat-contact-id]').forEach(button => button.addEventListener('click', () => selectChatContact(Number(button.dataset.chatContactId))));
+        updateChatUnreadIndicator();
     }
 
     function formatChatContactTime(value) {
@@ -789,6 +842,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!contact) return;
         chatState.activeContact = contact;
         contact.unread_count = 0;
+        updateChatUnreadIndicator();
         const active = document.getElementById('chat-active-contact');
         if (active) active.innerHTML = `<img src="${escapePortalHtml(contact.profile_picture || '/img/fiu9-mark2.png')}" alt=""><span><strong>${escapePortalHtml(contact.name || contact.username)}</strong><small>${escapePortalHtml(contact.role || 'user')}</small></span>`;
         const input = document.getElementById('campus-chat-input');
@@ -808,7 +862,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const stored = Array.isArray(data.messages) ? data.messages : [];
             const live = chatState.messages.get(contactId) || [];
             const merged = new Map([...stored, ...live].map(item => [item.id || `${item.sender_id}:${item.sent_at}:${item.text}`, item]));
-            chatState.messages.set(contactId, Array.from(merged.values()).sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0)));
+            const history = Array.from(merged.values()).sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0));
+            chatState.messages.set(contactId, history);
+            updateContactSummaryFromHistory(contactId, history);
         } catch (error) {
             if (requestId !== chatState.historyRequestId || chatState.activeContact?.id !== contactId) return;
             chatState.messages.set(contactId, []);
@@ -821,7 +877,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function updateContactSummaryFromHistory(contactId, items) {
+        const contact = chatState.contacts.find(item => Number(item.id) === Number(contactId));
+        if (!contact || !items.length) return;
+        const latest = items[items.length - 1];
+        contact.last_message = latest.text || '';
+        contact.last_message_at = latest.sent_at || contact.last_message_at || null;
+        contact.last_message_sender_id = latest.sender_id;
+        contact.unread_count = 0;
+        renderChatContacts(document.getElementById('chat-contact-search')?.value || '');
+        updateChatUnreadIndicator();
+    }
+
     function connectChatSocket() {
+        if (!chatState.currentUserId) return;
         if (chatState.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(chatState.socket.readyState)) return;
         const status = document.getElementById('chat-connection-status');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -853,6 +922,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             contact.unread_count = (Number(contact.unread_count) || 0) + 1;
                         }
                         renderChatContacts(document.getElementById('chat-contact-search')?.value || '');
+                        updateChatUnreadIndicator();
                     }
                     if (isIncoming) sendChatReceipt(payload, 'received');
                     if (chatState.activeContact?.id === otherId) renderChatMessages();
@@ -865,7 +935,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         chatState.socket.addEventListener('close', () => {
             if (status) { status.textContent = portalT('chat.offline', 'Offline'); status.classList.remove('is-online'); }
-            window.setTimeout(() => { if (document.visibilityState !== 'hidden') connectChatSocket(); }, 2500);
+            window.setTimeout(() => { if (document.visibilityState !== 'hidden' && chatState.currentUserId) connectChatSocket(); }, 2500);
         });
         chatState.socket.addEventListener('error', () => {
             if (status) { status.textContent = portalT('chat.offline', 'Offline'); status.classList.remove('is-online'); }
@@ -885,7 +955,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const items = chatState.messages.get(chatState.activeContact.id) || [];
         if (!items.length) {
-            messages.innerHTML = `<div class="chat-empty-state">${portalT('chat.startConversation', 'Start a conversation with {name}.', { name: escapePortalHtml(chatState.activeContact.name || chatState.activeContact.username) })}</div>`;
+            messages.innerHTML = `<div class="chat-empty-state">${portalT('chat.noMessages', 'No messages yet.')}</div>`;
             return;
         }
         messages.innerHTML = items.map(item => {
@@ -1202,6 +1272,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // echoed over WebSocket are rendered in the active conversation even
         // when localStorage was empty before the auth check finished.
         chatState.currentUserId = Number(user?.id) || null;
+        if (document.getElementById('chat-contacts-list')) {
+            // setupCampusChat can run before /auth/session resolves. Refresh
+            // the contacts and socket now that the authenticated id is known.
+            loadChatContacts();
+            connectChatSocket();
+            startChatContactRefresh();
+        }
         updatePortalProfilePresentation(user);
         
         elements.loginSection.classList.add('hidden');
@@ -1242,6 +1319,18 @@ document.addEventListener('DOMContentLoaded', function() {
      * Shows the logged-out state
      */
     function showLoggedOutState() {
+        chatState.currentUserId = null;
+        chatState.contacts = [];
+        chatState.activeContact = null;
+        updateChatUnreadIndicator();
+        if (chatState.socket) {
+            try { chatState.socket.close(); } catch (_) { }
+            chatState.socket = null;
+        }
+        if (chatState.contactsRefreshTimer) {
+            window.clearInterval(chatState.contactsRefreshTimer);
+            chatState.contactsRefreshTimer = null;
+        }
         elements.loginSection.classList.remove('hidden');
         elements.sectionsContainer.classList.add('hidden');
         
@@ -1313,7 +1402,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         Object.entries(sectionMap).forEach(([key, element]) => {
             if (!element) return;
-            const isCurrentRoute = routeKey === key;
+            const isCurrentRoute = key === 'platforms'
+                ? routeKey === 'dashboard' || routeKey === 'platforms'
+                : routeKey === key;
             element.classList.toggle('hidden', !allowed.includes(key) || !isCurrentRoute);
         });
         const platformsPanel = document.querySelector('.platforms-panel');
@@ -1508,6 +1599,17 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (_) {
             return raw.replace(/\/undefined(?=\/|$)/gi, '').replace(/\/+$/g, '');
         }
+    }
+
+    // RMS and Leave use a same-origin FIU route first. The server checks the
+    // current FIU session and then redirects only to each platform's
+    // allowlisted Google/OIDC entry point; platform URLs from the catalogue
+    // are never trusted for these two SSO-enabled services.
+    function getPlatformSsoLaunchUrl(platform) {
+        const name = String(platform?.name || platform || '').trim().toLowerCase();
+        if (name === 'rms' || name.includes('residency management')) return '/sso/rms';
+        if (name === 'leave' || name.includes('leave and absence') || name.includes('leave & absence')) return '/sso/leave';
+        return '';
     }
 
     function sanitizeLmsPath(path) {
@@ -1734,7 +1836,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         copy.textContent = portalT('platforms.quickReturn', 'Quickly return to the campus services you use most.');
         mostAccessedPlatforms.map(resolveMostAccessedPlatform).forEach(platform => {
-            const url = sanitizePlatformUrl(platform.url);
+            const url = getPlatformSsoLaunchUrl(platform) || sanitizePlatformUrl(platform.url);
             const card = document.createElement(url ? 'a' : 'div');
             card.className = 'most-accessed-platform';
             if (url) {
@@ -1770,11 +1872,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = getUserFromStorage() || {};
         const menuAllowed = hasSectionAccess(user, 'dining-menu');
         const announcementsAllowed = hasSectionAccess(user, 'announcements');
+        const route = getPortalRoute();
+        const isPlatformsRoute = route.view === 'section' && route.sectionKey === 'platforms';
         const menuCard = document.getElementById('dashboard-menu-card');
         const announcementsCard = document.getElementById('dashboard-announcements-card');
-        if (menuCard) menuCard.hidden = !menuAllowed;
-        if (announcementsCard) announcementsCard.hidden = !announcementsAllowed;
-        grid.hidden = !menuAllowed && !announcementsAllowed;
+        if (menuCard) menuCard.hidden = isPlatformsRoute || !menuAllowed;
+        if (announcementsCard) announcementsCard.hidden = isPlatformsRoute || !announcementsAllowed;
+        grid.hidden = isPlatformsRoute || (!menuAllowed && !announcementsAllowed);
+        if (isPlatformsRoute) return;
 
         if (menuAllowed) {
             const today = new Date();
@@ -1800,7 +1905,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const title = escapePortalHtml(item.title || 'Campus announcement');
                     const rawContent = String(item.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                     const excerpt = escapePortalHtml(rawContent.slice(0, 96) + (rawContent.length > 96 ? '…' : ''));
-                    return `<div class="dashboard-focus-announcement"><strong>${title}</strong>${excerpt ? `<small>${excerpt}</small>` : ''}</div>`;
+                    const priority = String(item.priority || 'medium').toLowerCase();
+                    const isImportant = priority === 'high' || priority === 'urgent';
+                    const priorityLabel = getAnnouncementPriorityLabel(priority);
+                    return `<div class="dashboard-focus-announcement${isImportant ? ' is-important' : ''}" data-priority="${priority}">${isImportant ? `<span class="announcement-priority-tag"><i class="fas fa-bolt" aria-hidden="true"></i>${priorityLabel}</span>` : ''}<strong>${title}</strong>${excerpt ? `<small>${excerpt}</small>` : ''}</div>`;
                 }).join('')}</div>${announcements.length > 2 ? `<small class="dashboard-focus-count">${announcements.length} announcements available</small>` : ''}`;
             }
         }
@@ -1858,7 +1966,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     return String(left.name || '').localeCompare(String(right.name || ''));
                 });
-            const pageSize = 6;
+            // Keep every service visible in the dashboard. The portal already
+            // scopes the returned catalogue by the user's role/access policy;
+            // pagination here only hid otherwise available platforms.
+            const pageSize = Math.max(sortedItems.length, 1);
             const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize));
             let currentPage = 1;
             const pagination = document.createElement('nav');
@@ -1978,6 +2089,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function getPlatformButtonConfig(platform) {
         const specialPlatforms = ['SIS', 'AIS', 'LMS', 'LMS0', 'Document Application System', 'Summer School Application', 'Accommodation Booking Portal', 'Support Center', 'Student Exam Registration', 'Exemption exam form', 'Resit Exams Application'];
         const isSpecialPlatform = specialPlatforms.includes(platform.name);
+        const ssoLaunchUrl = getPlatformSsoLaunchUrl(platform);
+        if (ssoLaunchUrl) {
+            return {
+                platformUrl: ssoLaunchUrl,
+                buttonClass: 'btn btn-primary',
+                buttonText: `<span style="margin-right:6px;">\u{1F510}</span>${getTranslation('access-platform')}`
+            };
+        }
         // Special case: SIS should be a direct link
         // SIS uses its fixed URL; AIS must use its own URL from DB (or fallback)
         if (platform.name === 'SIS') {
@@ -2081,6 +2200,15 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Loads announcements from the PHP API
      */
+    function getAnnouncementPriorityRank(priority) {
+        return { urgent: 4, high: 3, medium: 2, low: 1 }[String(priority || 'medium').toLowerCase()] || 2;
+    }
+
+    function getAnnouncementPriorityLabel(priority) {
+        const normalized = String(priority || 'medium').toLowerCase();
+        return normalized === 'urgent' ? 'Urgent' : normalized === 'high' ? 'High priority' : normalized === 'low' ? 'Low priority' : 'Priority';
+    }
+
     function loadAnnouncements() {
         const user = getUserFromStorage();
         if (user && !hasSectionAccess(user, 'announcements')) return;
@@ -2109,6 +2237,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (target === 'students') return role === 'student';
                         if (target === 'instructors') return role !== 'student';
                         return true;
+                    }).sort((left, right) => {
+                        const priorityDifference = getAnnouncementPriorityRank(right.priority) - getAnnouncementPriorityRank(left.priority);
+                        if (priorityDifference !== 0) return priorityDifference;
+                        return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
                     });
 
                     announcementsState.slides = filtered;
@@ -2191,7 +2323,10 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function createAnnouncementCard(announcement, container) {
         const announcementCard = document.createElement('div');
-        announcementCard.className = 'announcement-card';
+        const priority = String(announcement.priority || 'medium').toLowerCase();
+        const isImportant = priority === 'high' || priority === 'urgent';
+        announcementCard.className = `announcement-card${isImportant ? ' is-important' : ''}`;
+        announcementCard.dataset.priority = priority;
         
         // Format the date with day name
         const date = new Date(announcement.created_at);
@@ -2203,6 +2338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }) + ' ' + portalFormatDateTime(date, { hour: '2-digit', minute:'2-digit' });
         
         announcementCard.innerHTML = `
+            ${isImportant ? `<span class="announcement-priority-tag"><i class="fas fa-bolt" aria-hidden="true"></i>${getAnnouncementPriorityLabel(priority)}</span>` : ''}
             <h3>${announcement.title}</h3>
             <div class="announcement-date">${formattedDate}</div>
         `;
@@ -2632,7 +2768,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (notification.platform === 'RMS' || notification.platform === 'Leave and Absence') {
             const configuredPlatform = platformCatalog.find(platform => String(platform.name || '').toLowerCase() === String(notification.platform || '').toLowerCase());
-            notificationUrl = notificationUrl || configuredPlatform?.notifications_url || configuredPlatform?.url || '#';
+            notificationUrl = getPlatformSsoLaunchUrl(configuredPlatform || notification.platform) || notificationUrl || configuredPlatform?.notifications_url || configuredPlatform?.url || '#';
         } else if (notification.platform === 'LMS' && user && user.username) {
             // Use server-side direct link for LMS notifications
             const subplatformName = notification.subplatform || 'Unknown';

@@ -5,50 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Archive - FIU Global Portal</title>
     <link rel="icon" type="image/png" href="/img/fiu9-mark2.png?v=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=93">
     <link rel="stylesheet" href="css/portal-theme.css?v=2">
-    <link rel="stylesheet" href="css/design-fixes.css?v=17">
     <link rel="stylesheet" href="css/i18n.css?v=1">
+    <link rel="stylesheet" href="css/session-timeout.css?v=1">
+    <link rel="stylesheet" href="css/design-fixes.css?v=39">
+    <link rel="stylesheet" href="css/dashboard-refined.css?v=5">
+    <link rel="stylesheet" href="css/portal-upgrades.css?v=13">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body.archive-page { font-family: Arial, sans-serif !important; min-height: 100vh; }
-        body.archive-page * { font-family: Arial, sans-serif !important; }
+        body.archive-page { min-height: 100vh; }
         body.archive-page .fa,
         body.archive-page .fas { font-family: "Font Awesome 6 Free" !important; font-weight: 900 !important; }
-        .archive-shell {
-            width: min(1180px, calc(100% - 32px));
-            margin: 18px auto 40px;
-        }
-        .archive-topbar {
-            position: sticky;
-            top: 14px;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 14px 18px;
-            border-radius: 28px;
-            background: rgba(255,255,255,.88);
-            border: 1px solid rgba(20,40,80,.12);
-            box-shadow: 0 24px 70px rgba(15,30,56,.14);
-            backdrop-filter: blur(18px);
-        }
-        .archive-brand { display: flex; align-items: center; gap: 14px; flex: 1; }
-        .archive-brand img { height: 46px; border-radius: 16px; box-shadow: 0 10px 30px rgba(15,30,56,.14); }
-        .archive-brand h1 {
-            display: block !important;
-            margin: 0;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            font-size: clamp(24px, 3vw, 36px);
-            line-height: 1;
-            color: #101a2f !important;
-            letter-spacing: -.04em;
-        }
-        .archive-brand p { margin: 2px 0 0; color: #66728a; font-weight: 700; }
-        .archive-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .archive-main { min-width: 0; display: grid; gap: 20px; }
         .archive-language { position: relative; }
         .archive-language .language-btn { min-height: 44px; padding: 0 15px; border: 1px solid rgba(20,40,80,.12); border-radius: 999px; background: rgba(255,255,255,.76); color: #101a2f; font: inherit; font-weight: 900; cursor: pointer; }
         .archive-language .language-dropdown { display: none; position: absolute; inset: calc(100% + 8px) 0 auto auto; width: 156px; padding: 8px; border: 1px solid rgba(20,40,80,.12); border-radius: 14px; background: #fff; box-shadow: 0 16px 42px rgba(15,30,56,.16); }
@@ -70,9 +42,7 @@
             text-decoration: none;
             box-shadow: 0 12px 28px rgba(15,30,56,.1);
         }
-        .archive-action.primary { background: #0f2d57; color: #fff; }
         .archive-hero {
-            margin: 24px 0;
             padding: clamp(24px, 4vw, 42px);
             border-radius: 30px;
             background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(241,246,252,.88));
@@ -173,71 +143,152 @@
         body.dark-mode.archive-page .archive-hero h2,
         body.dark-mode.archive-page .archive-panel h3,
         body.dark-mode.archive-page .archive-item strong { color: #eef4ff; }
-        body.dark-mode.archive-page .archive-topbar,
         body.dark-mode.archive-page .archive-panel,
         body.dark-mode.archive-page .archive-hero { background: rgba(10,20,38,.88); border-color: rgba(255,255,255,.12); }
         body.dark-mode.archive-page .archive-item { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); color: #e7eefb; }
         body.dark-mode.archive-page .archive-brand p,
         body.dark-mode.archive-page .archive-hero p,
         body.dark-mode.archive-page .archive-item span { color: #c7d3e6; }
-        body.dark-mode.archive-page .archive-brand h1 {
-            background: transparent !important;
-            color: #eef4ff !important;
-        }
         body.dark-mode.archive-page .archive-language .language-btn,
         body.dark-mode.archive-page .archive-language .language-dropdown { background: #10223e; color: #eef4ff; border-color: rgba(255,255,255,.16); }
         body.dark-mode.archive-page .archive-language .language-option { color: #eef4ff; }
         body.dark-mode.archive-page .archive-language .language-option:hover { background: rgba(255,255,255,.1); }
         @media (max-width: 820px) {
-            .archive-topbar { position: static; flex-wrap: wrap; }
             .archive-grid { grid-template-columns: 1fr; }
             body.archive-page .archive-meal-grid { grid-template-columns: 1fr; }
         }
+
+        /* Archive-specific polish inside the shared portal shell. */
+        body.archive-page .portal-with-sidebar { align-items: start; }
+        body.archive-page .archive-hero {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at 92% 0%, rgba(225,177,66,.28), transparent 30%),
+                linear-gradient(135deg, #0e2b57 0%, #173f76 56%, #26558f 100%);
+            border-color: rgba(26,60,111,.16);
+            color: #fff;
+        }
+        body.archive-page .archive-hero h2,
+        body.archive-page .archive-hero p { color: #fff; }
+        body.archive-page .archive-hero p { color: rgba(255,255,255,.78); }
+        body.archive-page .archive-panel { min-height: 100%; }
+        body.archive-page .archive-panel h3 { display: flex; align-items: center; gap: 10px; }
+        body.archive-page .archive-panel h3::before {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            background: #edf3fb;
+            color: #1b4f8b;
+            font-family: "Font Awesome 6 Free";
+            font-size: .9rem;
+        }
+        body.archive-page .archive-panel:first-child h3::before { content: "\f0a1"; }
+        body.archive-page .archive-panel:last-child h3::before { content: "\f2e7"; }
+        body.archive-page .archive-week { border-radius: 18px; background: #f7f9fc; box-shadow: none; }
+        body.archive-page .archive-week-header {
+            padding: 16px 18px;
+            background: transparent;
+            color: #102449;
+            border-bottom: 1px solid rgba(20,40,80,.1);
+        }
+        body.archive-page .archive-week-kicker { color: #a46d12; }
+        body.archive-page .archive-week-header strong { color: #102449; }
+        body.archive-page .archive-week-count { color: #1b4f8b; border-color: rgba(27,79,139,.18); background: #fff; }
+        body.archive-page .archive-week-days { grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 12px; padding: 14px; }
+        body.archive-page .archive-week-day { padding: 14px; background: #fff; border-color: rgba(20,40,80,.1); box-shadow: 0 8px 18px rgba(15,30,56,.05); }
+        body.archive-page .archive-day-heading { align-items: center; margin-bottom: 14px; }
+        body.archive-page .archive-day-heading strong { font-family: "Manrope", sans-serif; font-size: .96rem; }
+        body.archive-page .archive-day-heading span { padding: 4px 8px; border-radius: 999px; background: #edf3fb; color: #1b4f8b; font-size: .68rem; letter-spacing: .05em; }
+        body.archive-page .archive-meal-grid { grid-template-columns: 1fr; gap: 8px; }
+        body.archive-page .archive-meal { padding: 11px 12px; background: #f9fbfe; border-color: rgba(20,40,80,.08); }
+        body.archive-page .archive-meal > span { margin-bottom: 4px; color: #a46d12; font-size: .68rem; }
+        body.archive-page .archive-meal p { font-size: .9rem; }
+        body.archive-page .archive-filter-row { margin-bottom: 12px; }
+        body.archive-page .archive-result-count { color: #60708b; }
+        body.dark-mode.archive-page .archive-hero h2,
+        body.dark-mode.archive-page .archive-hero p { color: #fff; }
+        body.dark-mode.archive-page .archive-panel h3::before,
+        body.dark-mode.archive-page .archive-day-heading span { background: rgba(116,170,244,.16); color: #d8e9ff; }
+        body.dark-mode.archive-page .archive-week { background: rgba(10,20,38,.64); }
+        body.dark-mode.archive-page .archive-week-header { border-color: rgba(255,255,255,.12); }
+        body.dark-mode.archive-page .archive-week-header strong { color: #eef4ff; }
+        body.dark-mode.archive-page .archive-week-count { color: #d8e9ff; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); }
+        body.dark-mode.archive-page .archive-week-day,
+        body.dark-mode.archive-page .archive-meal { background: rgba(255,255,255,.07); }
     </style>
 </head>
-<body class="archive-page">
-    <div class="archive-shell">
-        <header class="archive-topbar">
-            <div class="archive-brand">
-                <img src="/img/fiu9-mark.png" alt="FIU Global Portal logo">
-                <div>
-                    <h1 data-i18n="navigation.archive">Archive</h1>
-                    <p id="archive-user" data-i18n="common.loadingAccount">Loading account...</p>
+<body class="user-portal archive-page">
+    <header>
+        <div class="logo"><img src="/img/fiu9-mark2.png" alt="FIU Global Portal logo"></div>
+        <div class="header-title-section">
+            <h1>FIU GLOBAL PORTAL</h1>
+            <div id="user-info"><span id="username"></span></div>
+        </div>
+        <div class="header-right">
+            <div class="user-dropdown">
+                <button class="user-dropdown-btn" id="user-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="user-dropdown-content">
+                    <img id="header-profile-avatar" class="header-profile-avatar" src="/img/fiu9-mark2.png" alt="">
+                    <span id="header-profile-name">Account</span>
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="user-dropdown-content" id="user-dropdown-content" role="menu" aria-label="Account menu">
+                    <a id="profile-btn" class="btn topbar-pill" href="/student_dashboard/profile" role="menuitem"><span class="fa fa-user-circle" aria-hidden="true"></span> <span data-i18n="navigation.profile">Profile</span></a>
+                    <a class="btn topbar-pill" href="/student_dashboard" role="menuitem"><span class="fa fa-table-cells-large" aria-hidden="true"></span> <span data-i18n="navigation.dashboard">Dashboard</span></a>
+                    <div class="language-switcher" role="none">
+                        <button class="language-btn" id="language-btn" type="button" role="menuitem" aria-haspopup="true"><span id="current-language">English</span></button>
+                        <div class="language-dropdown" id="language-dropdown">
+                            <div class="language-option" data-lang="en">English</div>
+                            <div class="language-option" data-lang="tr">Turkish</div>
+                            <div class="language-option" data-lang="fr">French</div>
+                            <div class="language-option" data-lang="ru">Russian</div>
+                            <div class="language-option" data-lang="ar">Arabic</div>
+                        </div>
+                    </div>
+                    <button id="dark-mode-btn" class="theme-btn" type="button" role="menuitem"><span id="current-theme" data-i18n="theme.darkMode">Dark Mode</span></button>
+                    <button id="logout-btn" class="btn btn-logout" type="button" role="menuitem"><span class="fa fa-right-from-bracket" aria-hidden="true"></span> <span data-i18n="auth.logout">Logout</span></button>
                 </div>
             </div>
-            <nav class="archive-actions" aria-label="Archive navigation" data-i18n-aria-label="navigation.archiveNavigation">
-                <a id="dashboard-link" class="archive-action primary" href="/student_dashboard"><i class="fas fa-table-cells-large"></i> <span data-i18n="navigation.dashboard">Dashboard</span></a>
-                <div class="archive-language language-selector">
-                    <button class="language-btn" id="language-btn" type="button" aria-haspopup="listbox"><span id="current-language">English</span></button>
-                    <div class="language-dropdown" id="language-dropdown" role="listbox">
-                        <div class="language-option" data-lang="en">English</div><div class="language-option" data-lang="tr">Türkçe</div><div class="language-option" data-lang="fr">Français</div><div class="language-option" data-lang="ru">Русский</div><div class="language-option" data-lang="ar">العربية</div>
-                    </div>
-                </div>
-                <button id="dark-mode-btn" class="archive-action" type="button"><span id="current-theme" data-i18n="theme.darkMode">Dark Mode</span></button>
-                <button id="logout-btn" class="archive-action" type="button"><i class="fas fa-right-from-bracket"></i> <span data-i18n="auth.logout">Logout</span></button>
+        </div>
+    </header>
+    <div class="container portal-shell portal-with-sidebar">
+        <aside id="user-sidebar" class="user-sidebar" aria-label="Portal navigation" data-i18n-aria-label="navigation.portalNavigation">
+            <div class="user-sidebar-brand"><img src="/img/fiu9-mark2.png" alt="FIU Global Portal"><span><strong>FIU GLOBAL PORTAL</strong><small id="user-sidebar-role" data-i18n="portal.portal">Portal</small></span></div>
+            <nav id="user-sidebar-nav" class="user-sidebar-nav">
+                <a class="user-sidebar-link" href="/student_dashboard"><i class="fas fa-table-columns"></i><span data-i18n="navigation.dashboard">Dashboard</span></a>
+                <a class="user-sidebar-link" href="/student_dashboard/chat"><i class="fas fa-comments"></i><span data-i18n="navigation.chat">Chat</span><span id="archive-chat-unread" class="chat-nav-unread" hidden aria-live="polite"></span></a>
+                <a class="user-sidebar-link" href="/student_dashboard/profile"><i class="fas fa-user-circle"></i><span data-i18n="navigation.profile">Profile</span></a>
+                <a class="user-sidebar-link active" href="/archive" aria-current="page"><i class="fas fa-box-archive"></i><span data-i18n="navigation.archive">Archive</span></a>
+                <div id="archive-sidebar-granted" class="user-sidebar-granted"></div>
             </nav>
-        </header>
-
-        <section class="archive-hero">
-            <h2 data-i18n="archive.title">Your Archived Campus Updates</h2>
-            <p data-i18n="archive.description">Review announcements after 50 days and past dining menus that are available for your account.</p>
-        </section>
-
-        <main class="archive-grid">
-            <section class="archive-panel">
-                <h3 data-i18n="archive.announcements">Archived Announcements</h3>
-                <div id="archive-announcements" class="archive-list"><p data-i18n="announcements.loading">Loading announcements...</p></div>
+        </aside>
+        <main class="archive-main">
+            <section class="archive-hero">
+                <h2 data-i18n="archive.title">Your Archived Campus Updates</h2>
+                <p data-i18n="archive.description">Review announcements after 50 days and past dining menus that are available for your account.</p>
             </section>
-            <section class="archive-panel">
-                <h3 data-i18n="archive.diningMenus">Past Dining Menus</h3>
-                <div id="archive-dining" class="archive-list"><p data-i18n="dining.loading">Loading dining menus...</p></div>
-            </section>
+
+            <div class="archive-grid">
+                <section class="archive-panel">
+                    <h3 data-i18n="archive.announcements">Archived Announcements</h3>
+                    <div id="archive-announcements" class="archive-list"><p data-i18n="announcements.loading">Loading announcements...</p></div>
+                </section>
+                <section class="archive-panel">
+                    <h3 data-i18n="archive.diningMenus">Past Dining Menus</h3>
+                    <div id="archive-dining" class="archive-list"><p data-i18n="dining.loading">Loading dining menus...</p></div>
+                </section>
+            </div>
         </main>
     </div>
 
     <script src="js/config.js?v=1"></script>
     <script src="js/language.js?v=14"></script>
     <script src="js/portal-i18n-catalog.js?v=1"></script>
+    <script src="js/session-timeout.js?v=1"></script>
     <script src="js/archive.js?v=5"></script>
 </body>
 </html>
