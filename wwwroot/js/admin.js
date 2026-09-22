@@ -273,27 +273,39 @@ class AdminPanel {
                 const formData = new FormData(diningMenuForm);
                 const data = Object.fromEntries(formData.entries());
                 
-                // Handle checkbox value
-                data.is_recurring = document.getElementById('dining-menu-recurring').checked;
-                
-                this.saveDiningMenu(data);
+                // Handle recurring selections separately so only intentional dates are sent.
+                data.is_recurring = document.getElementById('dining-menu-recurring').checked;
+                data.recurring_dates = data.is_recurring ? this.getSelectedRecurringDates() : [];
+
+                if (data.is_recurring && !this.editingDiningMenuId && data.recurring_dates.length === 0) {
+                    this.showNotification('Choose at least one future date for this recurring menu.', 'error');
+                    return;
+                }
+
+                this.saveDiningMenu(data);
             });
         }
         
-        // Show/hide recurring options based on checkbox
-        const diningMenuRecurringCheckbox = document.getElementById('dining-menu-recurring');
-        if (diningMenuRecurringCheckbox) {
-            diningMenuRecurringCheckbox.addEventListener('change', (e) => {
-                const recurringOptions = document.getElementById('recurring-options');
-                if (recurringOptions) {
-                    if (e.target.checked) {
-                        recurringOptions.style.display = 'block';
-                    } else {
-                        recurringOptions.style.display = 'none';
-                    }
-                }
-            });
-        }
+        // Show/hide the custom recurring schedule based on the toggle.
+        const diningMenuRecurringCheckbox = document.getElementById('dining-menu-recurring');
+        if (diningMenuRecurringCheckbox) {
+            diningMenuRecurringCheckbox.addEventListener('change', (e) => {
+                this.setRecurringOptionsVisible(e.target.checked);
+            });
+        }
+
+        document.getElementById('open-recurring-calendar')?.addEventListener('click', () => this.openRecurringDatePicker());
+        document.getElementById('close-recurring-calendar')?.addEventListener('click', () => this.closeRecurringDatePicker());
+        document.getElementById('cancel-recurring-calendar')?.addEventListener('click', () => this.closeRecurringDatePicker());
+        document.getElementById('recurring-calendar-prev')?.addEventListener('click', () => this.changeRecurringCalendarMonth(-1));
+        document.getElementById('recurring-calendar-next')?.addEventListener('click', () => this.changeRecurringCalendarMonth(1));
+        document.getElementById('clear-recurring-calendar')?.addEventListener('click', () => this.clearRecurringDateSelection());
+        document.getElementById('apply-recurring-calendar')?.addEventListener('click', () => this.applyRecurringDateSelection());
+        document.getElementById('recurring-date-search')?.addEventListener('input', (event) => {
+            const picker = this.ensureRecurringDatePicker();
+            picker.searchQuery = event.target.value.trim();
+            this.renderRecurringDatePicker();
+        });
 
         // Holiday form submission
         const holidayForm = document.getElementById('holiday-form');
@@ -351,14 +363,9 @@ class AdminPanel {
             exportHolidaysXlsxBtn.addEventListener('click', () => this.exportHolidays('xlsx'));
         }
 
-        const downloadTemplateBtn = document.getElementById('download-template-btn');
-        if (downloadTemplateBtn) {
-            downloadTemplateBtn.addEventListener('click', () => this.downloadTemplate());
-        }
-
         const downloadTemplateXlsxBtn = document.getElementById('download-template-xlsx-btn');
         if (downloadTemplateXlsxBtn) {
-            downloadTemplateXlsxBtn.addEventListener('click', () => this.downloadTemplate('xlsx'));
+            downloadTemplateXlsxBtn.addEventListener('click', () => this.downloadTemplate());
         }
 
         const holidayImportFile = document.getElementById('upload-file');
@@ -567,11 +574,20 @@ class AdminPanel {
         }
     }
 
-    logout() {
-        localStorage.removeItem('adminSession');
-        // Prevent navigating forward back into the panel
+    async logout() {
+        try {
+            const response = await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            if (!response.ok) throw new Error('The server did not confirm logout.');
+        } catch (error) {
+            console.error('Could not finish the administrator session:', error);
+            this.showNotification('Could not finish your session. Check your connection and try again.', 'error');
+            return;
+        }
+        localStorage.removeItem('adminSession');
+        localStorage.removeItem('user');
+        sessionStorage.clear();
         window.location.replace('/login.html');
-    }
+    }
 
     /**
      * Sets up back button handler for admin logout functionality
@@ -874,9 +890,10 @@ class AdminPanel {
             const response = await fetch(`${ADMIN_API_BASE_URL}?endpoint=announcement-list`);
             const data = await response.json();
             
-            if (data.success) {
-                this.announcements = data.announcements;
-                this.renderAnnouncements();
+            if (data.success) {
+                this.announcements = data.announcements;
+                this.announcementPage = 1;
+                this.renderAnnouncements();
             } else {
                 console.error('Error loading announcements:', data.error);
             }
@@ -1017,17 +1034,23 @@ class AdminPanel {
         `).join('');
     }
 
-    renderAnnouncements() {
-        const container = document.getElementById('announcements-list');
-        if (!container) return;
-
-        if (this.announcements.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No announcements found.</p>';
-            return;
-        }
-
-        container.innerHTML = this.announcements.map(announcement => `
-            <div class="announcement-card">
+    renderAnnouncements() {
+        const container = document.getElementById('announcements-list');
+        if (!container) return;
+
+        const announcements = Array.isArray(this.announcements) ? this.announcements : [];
+        const pageSize = 6;
+        const pageCount = Math.max(1, Math.ceil(announcements.length / pageSize));
+        this.announcementPage = Math.min(Math.max(1, Number(this.announcementPage) || 1), pageCount);
+
+        if (announcements.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No announcements found.</p>';
+            return;
+        }
+
+        const pageAnnouncements = announcements.slice((this.announcementPage - 1) * pageSize, this.announcementPage * pageSize);
+        container.innerHTML = pageAnnouncements.map(announcement => `
+            <div class="announcement-card">
                 <div class="announcement-header">
                     <h3 class="announcement-title">${announcement.title}</h3>
                     <div class="announcement-actions">
@@ -1045,10 +1068,17 @@ class AdminPanel {
                     <span>By: ${announcement.author_name}</span>
                     <span>Created: ${new Date(announcement.created_at).toLocaleDateString()}</span>
                 </div>
-                <div class="announcement-content">${announcement.content}</div>
-            </div>
-        `).join('');
-    }
+                <div class="announcement-content">${announcement.content}</div>
+            </div>
+        `).join('') + `<nav class="pagination-controls" aria-label="Announcement pages"><button type="button" class="pagination-button" data-announcement-page="${this.announcementPage - 1}" ${this.announcementPage === 1 ? 'disabled' : ''} aria-label="Previous announcements page"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><span class="pagination-summary">Page ${this.announcementPage} of ${pageCount}</span><button type="button" class="pagination-button" data-announcement-page="${this.announcementPage + 1}" ${this.announcementPage === pageCount ? 'disabled' : ''} aria-label="Next announcements page"><i class="fas fa-chevron-right" aria-hidden="true"></i></button></nav>`;
+        container.querySelectorAll('[data-announcement-page]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (button.disabled) return;
+                this.announcementPage = Number(button.dataset.announcementPage) || 1;
+                this.renderAnnouncements();
+            });
+        });
+    }
 
     showAddAnnouncementModal() {
         this.editingAnnouncementId = null;
@@ -1239,35 +1269,30 @@ class AdminPanel {
         }).join('')}</div>`;
     }
 
-    showAddDiningMenuModal() {
-        this.editingDiningMenuId = null;
-        document.getElementById('dining-menu-modal-title').textContent = 'Add Dining Menu';
-        
-        // Reset form
-        document.getElementById('dining-menu-form').reset();
-        
-        // Set default date to today
-        document.getElementById('dining-menu-date').value = new Date().toISOString().split('T')[0];
-        
-        // Hide recurring options by default
-        const recurringOptions = document.getElementById('recurring-options');
-        if (recurringOptions) {
-            recurringOptions.style.display = 'none';
-        }
-        
-        // Add date validation
-        this.setupDiningMenuDateValidation();
-        
-        document.getElementById('dining-menu-modal').classList.remove('hidden');
-    }
-
-    setupDiningMenuDateValidation() {
-        const dateInput = document.getElementById('dining-menu-date');
-        if (dateInput) {
-            dateInput.addEventListener('change', async () => {
-                const selectedDate = dateInput.value;
-                if (selectedDate) {
-                    try {
+    showAddDiningMenuModal() {
+        this.editingDiningMenuId = null;
+        document.getElementById('dining-menu-modal-title').textContent = 'Add Dining Menu';
+
+        document.getElementById('dining-menu-form').reset();
+        const dateInput = document.getElementById('dining-menu-date');
+        dateInput.value = this.toDateKey(new Date());
+        dateInput.style.borderColor = '';
+
+        this.resetRecurringDatePicker(dateInput.value);
+        this.setRecurringOptionsVisible(false);
+        this.setupDiningMenuDateValidation();
+
+        document.getElementById('dining-menu-modal').classList.remove('hidden');
+    }
+
+    setupDiningMenuDateValidation() {
+        const dateInput = document.getElementById('dining-menu-date');
+        if (dateInput && !dateInput.dataset.availabilityListenerBound) {
+            dateInput.dataset.availabilityListenerBound = 'true';
+            dateInput.addEventListener('change', async () => {
+                const selectedDate = dateInput.value;
+                if (selectedDate) {
+                    try {
                         const response = await fetch(`${ADMIN_API_BASE_URL}?endpoint=check-date-availability&date=${selectedDate}`);
                         const data = await response.json();
                         
@@ -1278,36 +1303,329 @@ class AdminPanel {
                             dateInput.style.borderColor = '#28a745';
                         }
                     } catch (error) {
-                        console.error('Error checking date availability:', error);
-                    }
-                }
-            });
-        }
-    }
-
-    closeDiningMenuModal() {
-        document.getElementById('dining-menu-modal').classList.add('hidden');
-        this.editingDiningMenuId = null;
-    }
-
-    editDiningMenu(menuId) {
-        const menu = this.diningMenus.find(m => m.id == menuId);
-        if (!menu) return;
-
-        this.editingDiningMenuId = menuId;
-        document.getElementById('dining-menu-modal-title').textContent = 'Edit Dining Menu';
-        
-        // Fill form with menu data
-        document.getElementById('dining-menu-date').value = menu.date;
-        document.getElementById('dining-menu-breakfast').value = menu.breakfast_menu || '';
-        document.getElementById('dining-menu-breakfast-start').value = menu.breakfast_start_time;
+                        console.error('Error checking date availability:', error);
+                    }
+                }
+            });
+        }
+    }
+
+    ensureRecurringDatePicker() {
+        if (!this.recurringDatePicker) {
+            const today = new Date();
+            this.recurringDatePicker = {
+                selected: new Set(),
+                draft: new Set(),
+                loadingDates: new Set(),
+                month: new Date(today.getFullYear(), today.getMonth(), 1),
+                searchQuery: ''
+            };
+        }
+
+        return this.recurringDatePicker;
+    }
+
+    resetRecurringDatePicker(dateValue) {
+        const sourceDate = this.fromDateKey(dateValue) || new Date();
+        this.recurringDatePicker = {
+            selected: new Set(),
+            draft: new Set(),
+            loadingDates: new Set(),
+            month: new Date(sourceDate.getFullYear(), sourceDate.getMonth(), 1),
+            searchQuery: ''
+        };
+
+        const search = document.getElementById('recurring-date-search');
+        if (search) search.value = '';
+        this.updateRecurringDateSummary();
+    }
+
+    toDateKey(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    fromDateKey(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return this.toDateKey(date) === value ? date : null;
+    }
+
+    getRecurringSourceDate() {
+        return this.fromDateKey(document.getElementById('dining-menu-date')?.value) || new Date();
+    }
+
+    getSelectedRecurringDates() {
+        const sourceDate = this.getRecurringSourceDate();
+        return [...this.ensureRecurringDatePicker().selected]
+            .filter((key) => {
+                const date = this.fromDateKey(key);
+                return date && date > sourceDate;
+            })
+            .sort();
+    }
+
+    setRecurringOptionsVisible(isVisible) {
+        const options = document.getElementById('recurring-options');
+        if (options) options.hidden = !isVisible;
+        if (isVisible) this.updateRecurringDateSummary();
+    }
+
+    openRecurringDatePicker() {
+        const picker = this.ensureRecurringDatePicker();
+        const sourceDate = this.getRecurringSourceDate();
+        picker.draft = new Set(this.getSelectedRecurringDates());
+        picker.month = new Date(sourceDate.getFullYear(), sourceDate.getMonth(), 1);
+        picker.searchQuery = '';
+
+        const search = document.getElementById('recurring-date-search');
+        if (search) search.value = '';
+
+        this.renderRecurringDatePicker();
+        document.getElementById('recurring-calendar-modal')?.classList.remove('hidden');
+        search?.focus();
+    }
+
+    closeRecurringDatePicker() {
+        const picker = this.ensureRecurringDatePicker();
+        picker.draft = new Set(picker.selected);
+        picker.searchQuery = '';
+        document.getElementById('recurring-calendar-modal')?.classList.add('hidden');
+    }
+
+    changeRecurringCalendarMonth(offset) {
+        const picker = this.ensureRecurringDatePicker();
+        const sourceDate = this.getRecurringSourceDate();
+        const minimumMonth = new Date(sourceDate.getFullYear(), sourceDate.getMonth(), 1);
+        const nextMonth = new Date(picker.month.getFullYear(), picker.month.getMonth() + offset, 1);
+        picker.month = nextMonth < minimumMonth ? minimumMonth : nextMonth;
+        this.renderRecurringDatePicker();
+    }
+
+    formatRecurringDate(date, includeYear = true) {
+        return new Intl.DateTimeFormat('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            ...(includeYear ? { year: 'numeric' } : {})
+        }).format(date);
+    }
+
+    renderRecurringDatePicker() {
+        const picker = this.ensureRecurringDatePicker();
+        const grid = document.getElementById('recurring-calendar-grid');
+        const monthLabel = document.getElementById('recurring-calendar-month');
+        if (!grid || !monthLabel) return;
+
+        const sourceDate = this.getRecurringSourceDate();
+        const monthStart = new Date(picker.month.getFullYear(), picker.month.getMonth(), 1);
+        const calendarStart = new Date(monthStart);
+        calendarStart.setDate(1 - monthStart.getDay());
+        monthLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(monthStart);
+
+        const fragment = document.createDocumentFragment();
+        for (let index = 0; index < 42; index++) {
+            const date = new Date(calendarStart);
+            date.setDate(calendarStart.getDate() + index);
+
+            const key = this.toDateKey(date);
+            const sameMonth = date.getMonth() === monthStart.getMonth();
+            const weekend = date.getDay() === 0 || date.getDay() === 6;
+            const selectable = sameMonth && date > sourceDate && !weekend;
+            const selected = picker.draft.has(key);
+            const loading = picker.loadingDates.has(key);
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `recurring-calendar-date${selected ? ' is-selected' : ''}${!sameMonth ? ' is-outside-month' : ''}`;
+            button.dataset.recurringDate = key;
+            button.disabled = !selectable || loading;
+            button.setAttribute('aria-pressed', String(selected));
+            button.title = !sameMonth
+                ? ''
+                : weekend
+                    ? 'Weekends are unavailable'
+                    : date <= sourceDate
+                        ? 'Choose a date after the primary menu date'
+                        : this.formatRecurringDate(date);
+
+            const day = document.createElement('span');
+            day.textContent = String(date.getDate());
+            button.appendChild(day);
+
+            if (selected) {
+                const check = document.createElement('i');
+                check.className = 'fas fa-check';
+                check.setAttribute('aria-hidden', 'true');
+                button.appendChild(check);
+            }
+
+            if (selectable) {
+                button.addEventListener('click', () => this.toggleRecurringDate(key));
+            }
+
+            fragment.appendChild(button);
+        }
+
+        grid.replaceChildren(fragment);
+        this.renderRecurringSearchResults();
+    }
+
+    getRecurringSearchMatches(query) {
+        const sourceDate = this.getRecurringSourceDate();
+        const normalizedQuery = query.toLowerCase();
+        const matches = [];
+        const directDate = this.fromDateKey(query);
+        const endDate = new Date(sourceDate);
+        endDate.setMonth(endDate.getMonth() + 18);
+
+        const addCandidate = (date) => {
+            if (date <= sourceDate || date.getDay() === 0 || date.getDay() === 6) return;
+            const key = this.toDateKey(date);
+            if (matches.some((item) => item.key === key)) return;
+            const label = this.formatRecurringDate(date);
+            const searchable = `${key} ${label} ${new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long' }).format(date)}`.toLowerCase();
+            if (searchable.includes(normalizedQuery)) matches.push({ key, label });
+        };
+
+        if (directDate) addCandidate(directDate);
+
+        for (let date = new Date(sourceDate.getFullYear(), sourceDate.getMonth(), sourceDate.getDate() + 1); date <= endDate && matches.length < 8; date.setDate(date.getDate() + 1)) {
+            addCandidate(new Date(date));
+        }
+
+        return matches.slice(0, 8);
+    }
+
+    renderRecurringSearchResults() {
+        const results = document.getElementById('recurring-search-results');
+        if (!results) return;
+
+        const picker = this.ensureRecurringDatePicker();
+        const query = picker.searchQuery;
+        results.replaceChildren();
+
+        if (!query) {
+            const hint = document.createElement('span');
+            hint.className = 'recurring-search-hint';
+            hint.textContent = 'Try “Monday”, “November”, or a date such as 2026-11-16.';
+            results.appendChild(hint);
+            return;
+        }
+
+        const matches = this.getRecurringSearchMatches(query);
+        if (!matches.length) {
+            const empty = document.createElement('span');
+            empty.className = 'recurring-search-hint';
+            empty.textContent = 'No future weekdays match that search.';
+            results.appendChild(empty);
+            return;
+        }
+
+        for (const match of matches) {
+            const selected = picker.draft.has(match.key);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `recurring-search-result${selected ? ' is-selected' : ''}`;
+            button.textContent = match.label;
+            button.setAttribute('aria-pressed', String(selected));
+            button.addEventListener('click', () => this.toggleRecurringDate(match.key));
+            results.appendChild(button);
+        }
+    }
+
+    async toggleRecurringDate(key) {
+        const picker = this.ensureRecurringDatePicker();
+        if (picker.draft.has(key)) {
+            picker.draft.delete(key);
+            this.renderRecurringDatePicker();
+            return;
+        }
+
+        if (picker.loadingDates.has(key)) return;
+        picker.loadingDates.add(key);
+        this.renderRecurringDatePicker();
+
+        try {
+            const response = await fetch(`${ADMIN_API_BASE_URL}?endpoint=check-date-availability&date=${encodeURIComponent(key)}`);
+            const data = await response.json();
+            if (!response.ok || !data.available) {
+                this.showNotification(data.message || data.error || 'This date is unavailable for a dining menu.', 'error');
+                return;
+            }
+
+            picker.draft.add(key);
+        } catch (error) {
+            console.error('Error checking recurring menu date:', error);
+            this.showNotification('Could not check that date. Please try again.', 'error');
+        } finally {
+            picker.loadingDates.delete(key);
+            this.renderRecurringDatePicker();
+        }
+    }
+
+    clearRecurringDateSelection() {
+        const picker = this.ensureRecurringDatePicker();
+        picker.draft.clear();
+        this.renderRecurringDatePicker();
+    }
+
+    applyRecurringDateSelection() {
+        const picker = this.ensureRecurringDatePicker();
+        picker.selected = new Set(picker.draft);
+        this.updateRecurringDateSummary();
+        document.getElementById('recurring-calendar-modal')?.classList.add('hidden');
+    }
+
+    updateRecurringDateSummary() {
+        const selectedDates = this.getSelectedRecurringDates();
+        const input = document.getElementById('dining-menu-recurring-dates');
+        const summary = document.getElementById('recurring-date-summary');
+        if (input) input.value = JSON.stringify(selectedDates);
+        if (!summary) return;
+
+        if (!selectedDates.length) {
+            summary.textContent = 'No future dates selected.';
+            return;
+        }
+
+        const formatted = selectedDates.map((key) => this.formatRecurringDate(this.fromDateKey(key), false));
+        const preview = formatted.slice(0, 3).join(', ');
+        const remainder = formatted.length > 3 ? ` and ${formatted.length - 3} more` : '';
+        summary.textContent = `${selectedDates.length} future date${selectedDates.length === 1 ? '' : 's'} selected: ${preview}${remainder}.`;
+    }
+
+    closeDiningMenuModal() {
+        this.closeRecurringDatePicker();
+        document.getElementById('dining-menu-modal').classList.add('hidden');
+        this.editingDiningMenuId = null;
+    }
+
+    editDiningMenu(menuId) {
+        const menu = this.diningMenus.find(m => m.id == menuId);
+        if (!menu) return;
+
+        this.editingDiningMenuId = menuId;
+        document.getElementById('dining-menu-modal-title').textContent = 'Edit Dining Menu';
+        document.getElementById('dining-menu-form').reset();
+        document.getElementById('dining-menu-date').value = menu.date;
+        document.getElementById('dining-menu-breakfast').value = menu.breakfast_menu || '';
+        document.getElementById('dining-menu-breakfast-start').value = menu.breakfast_start_time;
         document.getElementById('dining-menu-breakfast-end').value = menu.breakfast_end_time;
-        document.getElementById('dining-menu-lunch').value = menu.lunch_menu || '';
-        document.getElementById('dining-menu-lunch-start').value = menu.lunch_start_time;
-        document.getElementById('dining-menu-lunch-end').value = menu.lunch_end_time;
-        
-        document.getElementById('dining-menu-modal').classList.remove('hidden');
-    }
+        document.getElementById('dining-menu-lunch').value = menu.lunch_menu || '';
+        document.getElementById('dining-menu-lunch-start').value = menu.lunch_start_time;
+        document.getElementById('dining-menu-lunch-end').value = menu.lunch_end_time;
+        document.getElementById('dining-menu-recurring').checked = Boolean(menu.is_recurring);
+        this.resetRecurringDatePicker(menu.date);
+        this.setRecurringOptionsVisible(Boolean(menu.is_recurring));
+        this.setupDiningMenuDateValidation();
+
+        document.getElementById('dining-menu-modal').classList.remove('hidden');
+    }
 
     async deleteDiningMenu(menuId) {
         if (confirm('Are you sure you want to delete this dining menu?')) {
@@ -1700,12 +2018,11 @@ class AdminPanel {
     renderHolidayImportRows(rows) {
         const body = document.getElementById('holiday-import-table-body');
         if (!body) return;
-        const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         const values = Array.isArray(rows) && rows.length ? rows : [{ date: '', day_of_week: '', holiday_name: '' }];
         body.innerHTML = values.map((row, index) => `
             <tr data-holiday-import-row>
                 <td><input type="text" data-holiday-date inputmode="numeric" placeholder="MM/DD/YYYY" value="${this.escapeHtml(row.date || '')}" aria-label="Date for row ${index + 1}"></td>
-                <td><select data-holiday-day aria-label="Day of week for row ${index + 1}"><option value="">Select day</option>${weekdays.map(day => `<option value="${day}" ${String(row.day_of_week || '').toLowerCase() === day.toLowerCase() ? 'selected' : ''}>${day}</option>`).join('')}</select></td>
+                <td><output data-holiday-day aria-label="Calculated weekday for row ${index + 1}">${this.escapeHtml(this.getHolidayWeekday(row.date) || '—')}</output></td>
                 <td><input type="text" data-holiday-name placeholder="Holiday name" value="${this.escapeHtml(row.holiday_name || '')}" aria-label="Holiday name for row ${index + 1}"></td>
                 <td><button type="button" class="holiday-row-remove" data-remove-holiday-row aria-label="Remove row ${index + 1}"><i class="fas fa-times"></i></button></td>
             </tr>`).join('');
@@ -1715,9 +2032,18 @@ class AdminPanel {
         }));
         body.querySelectorAll('[data-holiday-date]').forEach(input => input.addEventListener('change', event => {
             const value = String(event.currentTarget.value || '').trim();
-            const parsed = /^\d{2}\/\d{2}\/\d{4}$/.test(value) ? new Date(`${value.substring(6)}-${value.substring(0, 2)}-${value.substring(3, 5)}T12:00:00`) : null;
-            if (parsed && !Number.isNaN(parsed.getTime())) event.currentTarget.closest('tr').querySelector('[data-holiday-day]').value = parsed.toLocaleDateString('en-US', { weekday: 'long' });
+            const weekday = this.getHolidayWeekday(value);
+            event.currentTarget.closest('tr').querySelector('[data-holiday-day]').textContent = weekday || '—';
         }));
+    }
+
+    getHolidayWeekday(value) {
+        const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim());
+        if (!match) return '';
+        const [, month, day, year] = match;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day), 12);
+        if (parsed.getFullYear() !== Number(year) || parsed.getMonth() !== Number(month) - 1 || parsed.getDate() !== Number(day)) return '';
+        return parsed.toLocaleDateString('en-US', { weekday: 'long' });
     }
 
     addHolidayImportRow() {
@@ -1730,7 +2056,7 @@ class AdminPanel {
     getHolidayImportRows() {
         return Array.from(document.querySelectorAll('#holiday-import-table-body [data-holiday-import-row]')).map(row => ({
             date: row.querySelector('[data-holiday-date]')?.value.trim() || '',
-            day_of_week: row.querySelector('[data-holiday-day]')?.value || '',
+            day_of_week: row.querySelector('[data-holiday-day]')?.textContent.trim() || '',
             holiday_name: row.querySelector('[data-holiday-name]')?.value.trim() || ''
         }));
     }
@@ -1801,11 +2127,11 @@ class AdminPanel {
         }
     }
 
-    async downloadTemplate(format = 'csv') {
+    async downloadTemplate() {
         try {
             // Auto-update to current year - static within session but updates yearly
             const year = new Date().getFullYear();
-            window.open(`${ADMIN_API_BASE_URL}?endpoint=holiday-template&year=${year}&format=${encodeURIComponent(format)}`, '_blank');
+            window.open(`${ADMIN_API_BASE_URL}?endpoint=holiday-template&year=${year}`, '_blank');
         } catch (error) {
             console.error('Error downloading template:', error);
             this.showNotification('Error downloading template', 'error');

@@ -300,13 +300,18 @@
             return;
         }
         const maxCount = Math.max(...items.map(item => item.count), 1);
-        host.innerHTML = `<div class="action-bars" role="img" aria-label="Top administrator activity categories">
-            ${items.map(item => `
-                <div class="action-bar-row">
-                    <div class="action-bar-label"><span>${escapeHtml(item.action)}</span><strong>${item.count}</strong></div>
-                    <div class="action-bar-track"><span style="width:${Math.max(4, (item.count / maxCount) * 100).toFixed(1)}%"></span></div>
-                </div>
-            `).join('')}
+        const totalActions = items.reduce((sum, item) => sum + item.count, 0);
+        host.innerHTML = `<div class="action-bars" role="list" aria-label="Top administrator activity categories">
+            <div class="action-bar-scale" aria-hidden="true"><span>0</span><span>${maxCount} events</span></div>
+            ${items.map(item => {
+                const percentage = (item.count / maxCount) * 100;
+                const share = Math.round((item.count / totalActions) * 100);
+                return `
+                <div class="action-bar-row" role="listitem">
+                    <div class="action-bar-label"><span>${escapeHtml(item.action)}</span><strong>${item.count}<small>${share}%</small></strong></div>
+                    <div class="action-bar-track" role="progressbar" aria-label="${escapeHtml(item.action)}: ${item.count} events" aria-valuemin="0" aria-valuemax="${maxCount}" aria-valuenow="${item.count}"><span class="action-bar-fill" style="--action-bar-width:${Math.max(4, percentage).toFixed(1)}%;width:var(--action-bar-width)"></span></div>
+                </div>`;
+            }).join('')}
         </div>`;
     }
 

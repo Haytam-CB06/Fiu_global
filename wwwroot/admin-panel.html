@@ -19,7 +19,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/portal-theme.css?v=2">
-    <link rel="stylesheet" href="css/admin-polish.css?v=19">
+    <link rel="stylesheet" href="css/admin-polish.css?v=22">
     <link rel="stylesheet" href="css/i18n.css?v=1">
     <link rel="stylesheet" href="css/session-timeout.css?v=1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -1774,7 +1774,7 @@
     <link rel="stylesheet" href="css/design-fixes.css?v=25">
 
     <link rel="stylesheet" href="css/portal-theme.css?v=1">
-    <link rel="stylesheet" href="css/admin-polish.css?v=19">
+    <link rel="stylesheet" href="css/admin-polish.css?v=22">
     <link rel="stylesheet" href="css/design-fixes.css?v=25">
 </head>
 
@@ -2216,6 +2216,24 @@
 
                     </form>
 
+                    <section class="user-import-panel" aria-labelledby="user-import-title">
+                        <div class="user-import-copy">
+                            <span class="user-import-icon" aria-hidden="true"><i class="fas fa-file-excel"></i></span>
+                            <div>
+                                <h3 id="user-import-title">Import users from Excel</h3>
+                                <p>Download the template, then upload users with the columns <strong>Username</strong>, <strong>Email</strong>, <strong>Role</strong>, and <strong>Password</strong>. The Role column contains the current portal roles.</p>
+                            </div>
+                        </div>
+                        <form id="user-import-form" class="user-import-actions" enctype="multipart/form-data">
+                            <a class="btn btn-secondary" href="/database/admin_api.php?endpoint=user-import-template"><i class="fas fa-download"></i> Download template</a>
+                            <label class="btn btn-secondary" for="user-import-file"><i class="fas fa-file-upload"></i> Choose Excel file</label>
+                            <input id="user-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                            <span id="user-import-file-name" class="user-import-file-name">No file selected</span>
+                            <button id="user-import-submit" class="btn" type="submit" disabled><i class="fas fa-users"></i> Import users</button>
+                        </form>
+                        <p id="user-import-feedback" class="user-import-feedback" aria-live="polite"></p>
+                    </section>
+
                 </div>
 
                 <div id="create-user-directory" class="content-section enhanced-panel">
@@ -2518,12 +2536,6 @@
 
                     </button>
 
-                    <button class="btn btn-secondary" id="download-template-btn">
-
-                        <i class="fas fa-file-csv"></i> CSV Template
-
-                    </button>
-
                     <button class="btn btn-secondary" id="download-template-xlsx-btn">
 
                         <i class="fas fa-file-excel"></i> Excel Template
@@ -2752,51 +2764,51 @@
 
                 </div>
 
-                <div class="form-group">
+                <div class="form-group recurring-menu-setting">
 
-                    <label class="checkbox-label">
+                    <label class="recurring-toggle-card" for="dining-menu-recurring">
 
                         <input type="checkbox" id="dining-menu-recurring" name="is_recurring">
 
-                        <span class="checkmark"></span>
+                        <span class="recurring-toggle-control" aria-hidden="true"></span>
 
-                        Make this menu recurring for future dates
+                        <span class="recurring-toggle-copy">
+
+                            <strong>Make this menu recurring</strong>
+
+                            <small>Choose the exact future dates where this menu should appear.</small>
+
+                        </span>
 
                     </label>
 
-                    <small style="color: #856404; margin-top: 5px; display: block;">
-
-                        <i class="fas fa-info-circle"></i> When enabled, this menu will automatically be applied to all future occurrences of the same day of the week (e.g., if you create a Monday menu, it will apply to all future Mondays).
-
-                    </small>
-
                 </div>
 
-                <div class="form-group" id="recurring-options" style="display: none;">
+                <div class="form-group recurring-options" id="recurring-options" hidden>
 
-                    <label for="dining-menu-weeks-ahead">Number of weeks ahead to create menus</label>
+                    <div class="recurring-custom-card">
 
-                    <select id="dining-menu-weeks-ahead" name="weeks_ahead">
+                        <div>
 
-                        <option value="4">4 weeks (1 month)</option>
+                            <span class="recurring-eyebrow"><i class="fas fa-calendar-check"></i> Custom schedule</span>
 
-                        <option value="8">8 weeks (2 months)</option>
+                            <h4>Select exact future dates</h4>
 
-                        <option value="12" selected>12 weeks (3 months)</option>
+                            <p>Choose only the dates this menu should be published. Holidays and weekends stay unavailable.</p>
 
-                        <option value="16">16 weeks (4 months)</option>
+                        </div>
 
-                        <option value="20">20 weeks (5 months)</option>
+                        <button type="button" class="btn btn-secondary recurring-customize-button" id="open-recurring-calendar">
 
-                        <option value="24">24 weeks (6 months)</option>
+                            <i class="fas fa-calendar-plus"></i> Customize dates
 
-                    </select>
+                        </button>
 
-                    <small style="color: #856404; margin-top: 5px; display: block;">
+                    </div>
 
-                        <i class="fas fa-info-circle"></i> This will create menus for the specified number of weeks ahead, skipping holidays and weekends.
+                    <input type="hidden" id="dining-menu-recurring-dates" value="[]">
 
-                    </small>
+                    <p class="recurring-date-summary" id="recurring-date-summary" aria-live="polite">No future dates selected.</p>
 
                 </div>
 
@@ -2809,6 +2821,76 @@
                 </div>
 
                 </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Custom recurring menu dates modal -->
+
+    <div id="recurring-calendar-modal" class="modal hidden recurring-calendar-modal" role="dialog" aria-modal="true" aria-labelledby="recurring-calendar-title">
+
+        <div class="modal-content">
+
+            <div class="modal-header recurring-calendar-modal-header">
+
+                <div>
+
+                    <span class="recurring-eyebrow"><i class="fas fa-calendar-check"></i> Custom schedule</span>
+
+                    <h3 id="recurring-calendar-title">Choose menu dates</h3>
+
+                </div>
+
+                <button type="button" class="close recurring-calendar-close" id="close-recurring-calendar" aria-label="Close date picker"><i class="fas fa-times"></i></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <label class="recurring-calendar-search" for="recurring-date-search">
+
+                    <i class="fas fa-search" aria-hidden="true"></i>
+
+                    <input type="search" id="recurring-date-search" autocomplete="off" placeholder="Search by date, month, or weekday">
+
+                </label>
+
+                <p class="recurring-calendar-help">Select a future weekday after the primary menu date. Holidays and dates with an existing menu are checked before selection.</p>
+
+                <div class="recurring-search-results" id="recurring-search-results" aria-live="polite"></div>
+
+                <div class="recurring-calendar-toolbar">
+
+                    <button type="button" class="icon-button" id="recurring-calendar-prev" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
+
+                    <strong id="recurring-calendar-month"></strong>
+
+                    <button type="button" class="icon-button" id="recurring-calendar-next" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+
+                </div>
+
+                <div class="recurring-calendar-weekdays" aria-hidden="true">
+
+                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+
+                </div>
+
+                <div class="recurring-date-calendar-grid" id="recurring-calendar-grid" aria-label="Calendar dates"></div>
+
+            </div>
+
+            <div class="form-actions recurring-calendar-actions">
+
+                <button type="button" class="btn btn-secondary" id="cancel-recurring-calendar">Cancel</button>
+
+                <button type="button" class="btn btn-secondary" id="clear-recurring-calendar">Clear selected</button>
+
+                <button type="button" class="btn" id="apply-recurring-calendar">Apply selected dates</button>
 
             </div>
 
@@ -2964,9 +3046,9 @@
 
                     <div class="form-group">
 
-                        <div class="holiday-editor-heading"><div><label>Holiday rows</label><small>Edit the table directly or load a CSV/Excel file.</small></div><button type="button" class="btn btn-secondary btn-sm" id="holiday-import-add-row"><i class="fas fa-plus"></i> Add row</button></div>
+                        <div class="holiday-editor-heading"><div><label>Holiday rows</label><small>Load the Excel template with Date and Holiday name. The weekday is calculated automatically.</small></div><button type="button" class="btn btn-secondary btn-sm" id="holiday-import-add-row"><i class="fas fa-plus"></i> Add row</button></div>
 
-                        <div class="holiday-import-table-wrap table-responsive"><table class="table holiday-import-table"><thead><tr><th>Date (MM/DD/YYYY)</th><th>Day of week</th><th>Holiday name</th><th aria-label="Remove row"></th></tr></thead><tbody id="holiday-import-table-body"></tbody></table></div>
+                        <div class="holiday-import-table-wrap table-responsive"><table class="table holiday-import-table"><thead><tr><th>Date (MM/DD/YYYY)</th><th>Weekday</th><th>Holiday name</th><th aria-label="Remove row"></th></tr></thead><tbody id="holiday-import-table-body"></tbody></table></div>
                         <div id="holiday-import-errors" class="holiday-import-errors" aria-live="polite"></div>
 
                     </div>
@@ -3007,11 +3089,11 @@
 
 
 
-    <script src="js/admin.js?v=11"></script>
+    <script src="js/admin.js?v=13"></script>
     <script src="js/admin-auth-security.js?v=1"></script>
-    <script src="js/admin-enhancements.js?v=16"></script>
-    <script src="js/faculty-directory.js?v=6"></script>
-    <script src="js/account-management.js?v=19"></script>
+    <script src="js/admin-enhancements.js?v=17"></script>
+    <script src="js/faculty-directory.js?v=7"></script>
+    <script src="js/account-management.js?v=20"></script>
     <script src="js/admin-shell.js?v=9"></script>
     <script src="js/scroll-animations.js?v=1"></script>
 </body>

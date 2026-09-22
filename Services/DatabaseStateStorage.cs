@@ -574,9 +574,12 @@ public sealed class DatabaseStateStorage
                     {
                         state.Faculties.Add(imported);
                     }
-                    else if (string.IsNullOrWhiteSpace(existing.Name))
+                    else
                     {
                         existing.Name = imported.Name;
+                        existing.IsActive = imported.IsActive;
+                        existing.CreatedAt = imported.CreatedAt;
+                        existing.UpdatedAt = imported.UpdatedAt;
                     }
                 }
             }
@@ -600,9 +603,13 @@ public sealed class DatabaseStateStorage
                 {
                     state.Departments.Add(imported);
                 }
-                else if (string.IsNullOrWhiteSpace(existing.Name))
+                else
                 {
+                    existing.FacultyId = imported.FacultyId;
                     existing.Name = imported.Name;
+                    existing.IsActive = imported.IsActive;
+                    existing.CreatedAt = imported.CreatedAt;
+                    existing.UpdatedAt = imported.UpdatedAt;
                 }
             }
         }

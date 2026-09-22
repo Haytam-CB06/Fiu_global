@@ -51,9 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
     hydrateSession();
 
     logoutBtn?.addEventListener('click', async () => {
-        await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+        try {
+            const response = await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            if (!response.ok) throw new Error('The server did not confirm logout.');
+        } catch (error) {
+            console.error('Could not finish the server session:', error);
+            window.alert(archiveT('auth.logoutFailed', 'Could not finish your session. Check your connection and try again.'));
+            return;
+        }
         localStorage.removeItem('user');
         localStorage.removeItem('adminSession');
+        sessionStorage.clear();
         window.location.replace('/login.html');
     });
 

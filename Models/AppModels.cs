@@ -254,9 +254,13 @@ public sealed record LanguagePreferenceRequest(string? Language);
 
 public sealed record HolidayCsvRow(string Date, string DayOfWeek, string HolidayName);
 
+public sealed record UserImportRow(string Username, string Email, string Role, string Password);
+
 public sealed record DiningMenuImportRow(string Date, string BreakfastMenu, string BreakfastStartTime, string BreakfastEndTime, string LunchMenu, string LunchStartTime, string LunchEndTime);
 
 public sealed record OperationResult(bool Success, string? Error = null, int RecurringMenusCreated = 0);
+
+public sealed record UserImportResult(bool Success, int Imported, IReadOnlyList<string> Errors);
 
 public sealed class SessionInfo
 {

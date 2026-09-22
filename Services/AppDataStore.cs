@@ -665,6 +665,118 @@ public sealed class AppDataStore
         }
     }
 
+    /// <summary>
+    /// Returns the roles that can be assigned to portal user accounts. The list
+    /// combines configured role policies with existing account roles, so a role
+    /// remains available while it has accounts even if its policy is repaired.
+    /// </summary>
+    public List<string> GetAvailableUserRoles()
+    {
+        lock (_gate)
+        {
+            EnsureDefaultRoleAccess();
+            return _state.RoleSectionAccess.Keys
+                .Concat(_state.Users.Select(user => user.Role))
+                .Append("student")
+                .Append("instructor")
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .Select(NormalizeRoleKey)
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Creates a batch of user accounts only after every spreadsheet row has
+    /// passed validation. Passwords are hashed before storage and are never
+    /// included in activity logs or returned to callers.
+    /// </summary>
+    public UserImportResult ImportUsers(IEnumerable<UserImportRow>? sourceRows)
+    {
+        lock (_gate)
+        {
+            var rows = sourceRows?.ToList() ?? [];
+            if (rows.Count == 0)
+            {
+                return new UserImportResult(false, 0, ["The workbook does not contain any user rows."]);
+            }
+            if (rows.Count > 500)
+            {
+                return new UserImportResult(false, 0, ["A single import can contain up to 500 users."]);
+            }
+
+            var availableRoles = new HashSet<string>(GetAvailableUserRoles(), StringComparer.OrdinalIgnoreCase);
+            var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var emails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var normalizedRows = new List<(int RowNumber, string Username, string Email, string Role, string Password)>();
+            var errors = new List<string>();
+
+            for (var index = 0; index < rows.Count; index++)
+            {
+                var rowNumber = index + 2;
+                var username = rows[index].Username.Trim();
+                var email = rows[index].Email.Trim();
+                var role = NormalizeUserRole(rows[index].Role);
+                var password = rows[index].Password;
+
+                if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                {
+                    errors.Add($"Row {rowNumber}: Username, Email, Role, and Password are required.");
+                    continue;
+                }
+                if (!availableRoles.Contains(role))
+                {
+                    errors.Add($"Row {rowNumber}: choose a role from the workbook dropdown.");
+                    continue;
+                }
+                if (!usernames.Add(username))
+                {
+                    errors.Add($"Row {rowNumber}: the username appears more than once in this import.");
+                    continue;
+                }
+                if (!emails.Add(email))
+                {
+                    errors.Add($"Row {rowNumber}: the email appears more than once in this import.");
+                    continue;
+                }
+                if (AccountNameExists(username) || AccountEmailExists(email))
+                {
+                    errors.Add($"Row {rowNumber}: the username or email already exists.");
+                    continue;
+                }
+
+                normalizedRows.Add((rowNumber, username, email, role, password));
+            }
+
+            if (errors.Count > 0)
+            {
+                return new UserImportResult(false, 0, errors);
+            }
+
+            foreach (var row in normalizedRows)
+            {
+                _state.Users.Add(new UserAccount
+                {
+                    Id = _state.Counters.NextUserId++,
+                    Username = row.Username,
+                    Email = row.Email,
+                    Password = PasswordSecurity.Hash(row.Password),
+                    Role = row.Role,
+                    AllowedSections = [],
+                    SectionAccessConfigured = false,
+                    SectionPermissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            AddActivityInternal(null, "system", "admin", "user_import", $"{normalizedRows.Count} user accounts imported");
+            Save();
+            return new UserImportResult(true, normalizedRows.Count, []);
+        }
+    }
+
     public UserAccount? CreateGoogleStudentAccount(string email)
     {
         lock (_gate)
@@ -842,6 +954,11 @@ public sealed class AppDataStore
     {
         lock (_gate)
         {
+            // The relational directory is also edited directly in the
+            // deployment database. Refresh it on reads so those changes do
+            // not require an application restart to appear in profiles.
+            _database.MergeFacultyDirectory(_state);
+
             var departments = _state.Departments ?? [];
             return (_state.Faculties ?? [])
                 .Where(faculty => includeInactive || faculty.IsActive)
@@ -2174,7 +2291,10 @@ public sealed class AppDataStore
             var recurringCreated = 0;
             if (created && recurring)
             {
-                recurringCreated = CreateRecurringMenus(date, body, admin, body.GetInt("weeks_ahead", 12));
+                var selectedDates = GetRecurringMenuDates(body);
+                recurringCreated = selectedDates.Count > 0
+                    ? CreateRecurringMenusForSelectedDates(date, body, admin, selectedDates)
+                    : CreateRecurringMenus(date, body, admin, body.GetInt("weeks_ahead", 12));
             }
 
             if (created)
@@ -2406,18 +2526,10 @@ public sealed class AppDataStore
                     continue;
                 }
 
-                if (!TryNormalizeDayName(row.DayOfWeek, out var suppliedDay))
-                {
-                    errors.Add($"Row {rowNumber}: '{row.DayOfWeek}' is not a valid weekday name.");
-                    continue;
-                }
-
+                // Weekday is derived from the date on the server. Import files
+                // supply only Date and HolidayName, so a spreadsheet cannot
+                // accidentally store a mismatched weekday.
                 var actualDay = date.DayOfWeek.ToString();
-                if (!string.Equals(actualDay, suppliedDay, StringComparison.OrdinalIgnoreCase))
-                {
-                    errors.Add($"Row {rowNumber}: {date:MM/dd/yyyy} is {actualDay}, not {suppliedDay}.");
-                    continue;
-                }
 
                 if (!dates.Add(date))
                 {
@@ -3424,6 +3536,35 @@ public sealed class AppDataStore
         }
 
         return created;
+    }
+
+    private int CreateRecurringMenusForSelectedDates(DateOnly startDate, Dictionary<string, object?> body, AdminAccount admin, IEnumerable<DateOnly> selectedDates)
+    {
+        var created = 0;
+        foreach (var date in selectedDates.Distinct().Order())
+        {
+            if (date <= startDate || _state.DiningMenus.Any(item => item.Date == date) || GetHolidayOrWeekend(date) is not null)
+            {
+                continue;
+            }
+
+            if (CreateDiningMenuInternal(date, body, admin, true))
+            {
+                created++;
+            }
+        }
+
+        return created;
+    }
+
+    private static List<DateOnly> GetRecurringMenuDates(Dictionary<string, object?> body)
+    {
+        return body.GetStringList("recurring_dates")
+            .Select(value => DateOnly.TryParse(value, out var date) ? (DateOnly?)date : null)
+            .Where(date => date.HasValue)
+            .Select(date => date!.Value)
+            .Distinct()
+            .ToList();
     }
 
     private int RemoveDiningMenusForHolidayDates(IEnumerable<DateOnly> holidayDates)

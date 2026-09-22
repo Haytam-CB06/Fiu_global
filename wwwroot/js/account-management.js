@@ -396,6 +396,7 @@
         injectUserModal(panel);
         patchUserRenderer(panel);
         patchHolidayRenderer(panel);
+        bindUserImport(panel);
         loadAvailableCreateUserRoles();
         panel.loadUsers();
         if (window.location.pathname.toLowerCase().endsWith('/role-access')) loadRoleAccess(panel);
@@ -765,7 +766,7 @@
         if (body) body.innerHTML = pageRows.length ? pageRows.map(user => `<tr><td>${escapeHtml(user.student_number || '—')}</td><td><strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong><small class="muted-block">${escapeHtml(user.username)}</small></td><td>${escapeHtml(user.email)}</td><td><span class="status-badge status-active">${escapeHtml(user.role)}</span></td><td>${formatDate(user.created_at)}</td><td class="table-actions"><button class="btn btn-secondary btn-sm" onclick="accountManagement.editUser(${user.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="accountManagement.deleteUser(${user.id})">Delete</button></td></tr>`).join('') : `<tr><td colspan="6" class="empty-state">No ${escapeHtml(role)} accounts match this filter.</td></tr>`;
         const count = document.getElementById(`role-count-${role}`); if (count) count.textContent = `${rows.length} account${rows.length === 1 ? '' : 's'}`;
         const pagination = document.getElementById(`role-pages-${role}`); if (!pagination) return;
-        pagination.innerHTML = pages > 1 ? `<button class="btn btn-secondary btn-sm" ${state.page === 1 ? 'disabled' : ''} data-page-action="prev">Previous</button><span>Page ${state.page} of ${pages}</span><button class="btn btn-secondary btn-sm" ${state.page === pages ? 'disabled' : ''} data-page-action="next">Next</button>` : '';
+        pagination.innerHTML = `<button type="button" class="pagination-button" ${state.page === 1 ? 'disabled' : ''} data-page-action="prev" aria-label="Previous ${escapeHtml(role)} accounts page"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><span class="pagination-summary">Page ${state.page} of ${pages}</span><button type="button" class="pagination-button" ${state.page === pages ? 'disabled' : ''} data-page-action="next" aria-label="Next ${escapeHtml(role)} accounts page"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
         pagination.querySelector('[data-page-action="prev"]')?.addEventListener('click', () => { state.page--; renderRoleGrid(panel, role); });
         pagination.querySelector('[data-page-action="next"]')?.addEventListener('click', () => { state.page++; renderRoleGrid(panel, role); });
     }
@@ -1057,6 +1058,61 @@
         } else {
             panel.showNotification(result.error || 'Unable to create account', 'error');
         }
+    }
+
+    function bindUserImport(panel) {
+        const form = document.getElementById('user-import-form');
+        const fileInput = document.getElementById('user-import-file');
+        const submit = document.getElementById('user-import-submit');
+        const fileName = document.getElementById('user-import-file-name');
+        const feedback = document.getElementById('user-import-feedback');
+        if (!form || !fileInput || !submit || !fileName || !feedback || form.dataset.bound === 'true') return;
+
+        form.dataset.bound = 'true';
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files?.[0];
+            submit.disabled = !file;
+            fileName.textContent = file ? file.name : 'No file selected';
+            feedback.textContent = '';
+            feedback.className = 'user-import-feedback';
+        });
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const file = fileInput.files?.[0];
+            if (!file) return;
+
+            submit.disabled = true;
+            feedback.textContent = 'Importing users…';
+            feedback.className = 'user-import-feedback';
+            const data = new FormData();
+            data.append('action', 'user-import-upload');
+            data.append('file', file);
+
+            try {
+                const response = await fetch(api(), { method: 'POST', credentials: 'same-origin', body: data });
+                const result = await response.json();
+                if (!response.ok || result.success === false) {
+                    const details = Array.isArray(result.errors) && result.errors.length
+                        ? ` ${result.errors.slice(0, 3).join(' ')}`
+                        : '';
+                    throw new Error(`${result.error || 'Unable to import users.'}${details}`);
+                }
+
+                feedback.textContent = result.message || `${result.imported || 0} user account(s) imported.`;
+                feedback.className = 'user-import-feedback success';
+                panel.showNotification(feedback.textContent, 'success');
+                form.reset();
+                fileName.textContent = 'No file selected';
+                panel.loadUsers();
+                panel.loadDashboardStats();
+            } catch (error) {
+                feedback.textContent = error.message || 'Unable to import users.';
+                feedback.className = 'user-import-feedback error';
+                panel.showNotification('Unable to import users. Review the import details.', 'error');
+            } finally {
+                submit.disabled = !fileInput.files?.[0];
+            }
+        });
     }
 
     async function postJson(payload) {

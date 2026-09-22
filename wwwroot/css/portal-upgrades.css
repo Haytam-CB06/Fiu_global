@@ -1115,6 +1115,106 @@ body.archive-page .archive-meal p {
     body.archive-page .archive-result-count {
         justify-self: start !important;
     }
+
+    /* Use the existing portal navigation as a thumb-friendly mobile bottom bar. */
+    body.user-portal {
+        padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+    }
+
+    body.user-portal .portal-with-sidebar {
+        padding-bottom: 0 !important;
+    }
+
+    body.user-portal .user-sidebar {
+        position: fixed !important;
+        z-index: 1000 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+        overflow: hidden !important;
+        border: 0 !important;
+        border-top: 1px solid rgba(20, 40, 80, .14) !important;
+        border-radius: 18px 18px 0 0 !important;
+        background: rgba(255, 255, 255, .96) !important;
+        box-shadow: 0 -10px 30px rgba(15, 30, 56, .14) !important;
+        backdrop-filter: blur(18px);
+    }
+
+    body.user-portal .user-sidebar-nav {
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 4px !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        scrollbar-width: none;
+    }
+
+    body.user-portal .user-sidebar-nav::-webkit-scrollbar { display: none; }
+
+    body.user-portal .user-sidebar-nav > button,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link,
+    body.user-portal .user-sidebar-granted > button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 1 0 72px !important;
+        width: auto !important;
+        min-width: 72px !important;
+        min-height: 58px !important;
+        padding: 7px 8px !important;
+        gap: 4px !important;
+        border-radius: 12px !important;
+        color: #60708b !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        line-height: 1.1 !important;
+        text-align: center !important;
+        white-space: normal !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button i,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link i,
+    body.user-portal .user-sidebar-granted > button i {
+        width: auto !important;
+        font-size: 18px !important;
+        color: currentColor !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button span,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link span,
+    body.user-portal .user-sidebar-granted > button span {
+        display: block !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body.user-portal .user-sidebar-nav > button:hover,
+    body.user-portal .user-sidebar-nav > button.active,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link:hover,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link.active,
+    body.user-portal .user-sidebar-granted > button:hover,
+    body.user-portal .user-sidebar-granted > button.active {
+        background: #15396d !important;
+        color: #fff !important;
+    }
+
+    body.user-portal .user-sidebar-granted {
+        display: contents !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    body.dark-mode.user-portal .user-sidebar {
+        border-top-color: rgba(255, 255, 255, .16) !important;
+        background: rgba(16, 29, 48, .96) !important;
+    }
 }
 
 @media (max-width: 620px) {
@@ -1278,5 +1378,844 @@ body.user-portal .user-dropdown-content .theme-btn {
     body.user-portal .user-dropdown-content {
         top: calc(100% + 8px) !important;
         right: 0 !important;
+    }
+}
+
+/* Keep the archive link visually and interactively identical to sidebar tabs. */
+body.user-portal .user-sidebar-nav > a.user-sidebar-link {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: pointer;
+    transition: background-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+body.user-portal .user-sidebar-nav > a.user-sidebar-link:hover,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link:focus-visible,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link[aria-current="page"] {
+    background: #15396d !important;
+    color: #fff !important;
+}
+
+body.user-portal .user-sidebar-nav > a.user-sidebar-link:hover i,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link:focus-visible i,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link.active i,
+body.user-portal .user-sidebar-nav > a.user-sidebar-link[aria-current="page"] i {
+    color: #fff !important;
+}
+
+body.user-portal .user-sidebar-nav > a.user-sidebar-link:focus-visible {
+    outline: 3px solid rgba(29, 112, 214, .35);
+    outline-offset: 2px;
+}
+
+body.dark-mode.user-portal .user-sidebar-nav > a.user-sidebar-link:hover,
+body.dark-mode.user-portal .user-sidebar-nav > a.user-sidebar-link:focus-visible,
+body.dark-mode.user-portal .user-sidebar-nav > a.user-sidebar-link.active,
+body.dark-mode.user-portal .user-sidebar-nav > a.user-sidebar-link[aria-current="page"] {
+    background: #1b4b87 !important;
+    color: #fff !important;
+}
+
+/* Announcements are a readable feed; no horizontal swipe or slide controls. */
+body.user-portal #announcements-section .announcements-container {
+    display: block !important;
+    padding: clamp(12px, 2vw, 20px) !important;
+    overflow: visible !important;
+    border: 1px solid rgba(20, 40, 80, .1) !important;
+    border-radius: 20px !important;
+    background: #f7f9fc !important;
+}
+
+body.user-portal #announcements-section .announcements-tools {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 16px;
+}
+
+body.user-portal #announcements-section .announcement-search {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    box-sizing: border-box;
+    width: min(100%, 520px);
+    min-width: 0;
+    padding: 0 14px;
+    border: 1px solid #d8e2ef;
+    border-radius: 12px;
+    background: #fff;
+    color: #64748b;
+}
+
+body.user-portal #announcements-section .announcement-search:focus-within {
+    border-color: #6c9bd2;
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, .12);
+}
+
+body.user-portal #announcements-section .announcement-search input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 8px 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #17233a;
+    font: inherit;
+}
+
+body.user-portal #announcements-section .announcements-results {
+    margin: 0;
+    color: #64748b;
+    font-size: .85rem;
+    white-space: nowrap;
+}
+
+body.user-portal #announcements-section .announcement-pagination {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+body.user-portal #announcements-section .announcement-pagination[hidden],
+body.user-portal #announcements-section .announcements-results[hidden] {
+    display: none !important;
+}
+
+body.user-portal #announcements-section .announcement-pagination button {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: .9rem;
+}
+
+body.user-portal #announcements-section .announcement-pagination button:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
+body.user-portal #announcements-section .announcement-pagination span {
+    min-width: 88px;
+    color: #53647e;
+    font-size: .88rem;
+    text-align: center;
+}
+
+body.user-portal #announcements-section .announcements-list {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+body.user-portal #announcements-section .announcements-list-entry {
+    min-width: 0;
+}
+
+body.user-portal #announcements-section .announcement-list-item {
+    display: grid !important;
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    gap: 7px 16px;
+    align-items: center;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 17px 19px !important;
+    border: 1px solid #dce5f0 !important;
+    border-radius: 15px !important;
+    background: #fff !important;
+    box-shadow: 0 6px 16px rgba(15, 30, 56, .055) !important;
+    color: #17233a !important;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+body.user-portal #announcements-section .announcement-list-item:hover,
+body.user-portal #announcements-section .announcement-list-item:focus-visible {
+    border-color: #9ab8dc !important;
+    box-shadow: 0 10px 24px rgba(15, 47, 87, .11) !important;
+    transform: translateY(-1px);
+}
+
+body.user-portal #announcements-section .announcement-list-item .announcement-priority-tag {
+    grid-column: 1 / -1;
+    margin: 0 0 2px !important;
+}
+
+body.user-portal #announcements-section .announcement-list-item h3 {
+    grid-column: 1;
+    grid-row: auto;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: #142850 !important;
+    font-size: 1.02rem !important;
+    font-weight: 800 !important;
+    line-height: 1.35;
+    text-overflow: ellipsis !important;
+    white-space: normal !important;
+}
+
+body.user-portal #announcements-section .announcement-list-item .announcement-excerpt {
+    grid-column: 1;
+    margin: 0 !important;
+    overflow: hidden;
+    color: #61718b !important;
+    font-size: .9rem !important;
+    font-weight: 500 !important;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+body.user-portal #announcements-section .announcement-list-item .announcement-date {
+    grid-column: 1;
+    margin: 0 !important;
+    color: #728198 !important;
+    font-size: .78rem;
+    font-style: normal !important;
+    white-space: normal !important;
+}
+
+body.user-portal #announcements-section .announcement-open-label {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    gap: 8px;
+    align-items: center;
+    color: #17487f;
+    font-size: .82rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+body.user-portal #announcements-section .announcements-empty {
+    margin: 0;
+    padding: 22px;
+    border: 1px dashed #cbd7e6;
+    border-radius: 13px;
+    color: #64748b;
+    text-align: center;
+}
+
+body.dark-mode.user-portal #announcements-section .announcements-container {
+    border-color: rgba(255,255,255,.12) !important;
+    background: #12233d !important;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-search {
+    border-color: rgba(255,255,255,.16);
+    background: #172a46;
+    color: #b9c9de;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-search input {
+    color: #eef4ff;
+}
+
+body.dark-mode.user-portal #announcements-section .announcements-results,
+body.dark-mode.user-portal #announcements-section .announcement-pagination span {
+    color: #b9c9de;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-list-item {
+    border-color: rgba(255,255,255,.13) !important;
+    background: #172a46 !important;
+    color: #eef4ff !important;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-list-item h3 {
+    color: #f4f7ff !important;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-list-item .announcement-excerpt,
+body.dark-mode.user-portal #announcements-section .announcement-list-item .announcement-date {
+    color: #b9c9de !important;
+}
+
+body.dark-mode.user-portal #announcements-section .announcement-open-label {
+    color: #d9eaff;
+}
+
+body.dark-mode.user-portal #announcements-section .announcements-empty {
+    border-color: rgba(255,255,255,.2);
+    color: #b9c9de;
+}
+
+@media (max-width: 620px) {
+    body.user-portal #announcements-section .announcements-tools {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    body.user-portal #announcements-section .announcement-search {
+        width: 100%;
+    }
+
+    body.user-portal #announcements-section .announcement-pagination {
+        gap: 8px;
+    }
+
+    body.user-portal #announcements-section .announcement-pagination button {
+        padding: 8px 10px;
+    }
+
+    body.user-portal #announcements-section .announcement-list-item {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        padding: 15px !important;
+    }
+
+    body.user-portal #announcements-section .announcement-open-label {
+        grid-column: 1;
+        grid-row: auto;
+        margin-top: 2px;
+    }
+}
+
+/* Mobile portal navigation: three icon-only actions in a floating glass dock;
+   the remaining sections are available from the header's slide-out menu. */
+body.user-portal .mobile-section-menu-btn,
+body.user-portal .mobile-section-drawer,
+body.user-portal .mobile-section-drawer-backdrop {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    body.user-portal {
+        padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+    }
+
+    body.user-portal .user-sidebar {
+        position: fixed !important;
+        z-index: 1000 !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+        left: 50% !important;
+        width: min(230px, calc(100% - 28px)) !important;
+        min-height: 0 !important;
+        padding: 6px !important;
+        overflow: visible !important;
+        transform: translateX(-50%) !important;
+        border: 1px solid rgba(255, 255, 255, .65) !important;
+        border-radius: 22px !important;
+        background: rgba(255, 255, 255, .48) !important;
+        box-shadow: 0 16px 36px rgba(15, 30, 56, .2), inset 0 1px 0 rgba(255, 255, 255, .8) !important;
+        backdrop-filter: blur(22px) saturate(155%);
+        -webkit-backdrop-filter: blur(22px) saturate(155%);
+    }
+
+    body.user-portal .user-sidebar-brand,
+    body.user-portal .user-sidebar-nav > a.user-sidebar-link,
+    body.user-portal .user-sidebar-granted {
+        display: none !important;
+    }
+
+    body.user-portal .user-sidebar-nav {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 4px !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button {
+        position: relative !important;
+        display: grid !important;
+        flex: none !important;
+        place-items: center !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 54px !important;
+        padding: 8px 6px !important;
+        gap: 0 !important;
+        border-radius: 16px !important;
+        color: #60708b !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button span:not(.chat-nav-unread) {
+        display: none !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button i {
+        width: auto !important;
+        font-size: 19px !important;
+        color: currentColor !important;
+    }
+
+    body.user-portal .user-sidebar-nav > button.active {
+        background: #15396d !important;
+        color: #fff !important;
+        box-shadow: 0 8px 18px rgba(21, 57, 109, .28) !important;
+    }
+
+    body.user-portal .chat-nav-unread {
+        position: absolute !important;
+        top: 3px !important;
+        right: 5px !important;
+        display: grid !important;
+        min-width: 18px !important;
+        height: 18px !important;
+        padding: 0 4px !important;
+        place-items: center !important;
+        border: 2px solid rgba(255, 255, 255, .9) !important;
+        border-radius: 999px !important;
+        background: #e9344f !important;
+        color: #fff !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+    }
+
+    body.user-portal .mobile-section-menu-btn {
+        display: inline-grid !important;
+        flex: 0 0 40px !important;
+        width: 40px !important;
+        height: 40px !important;
+        place-items: center !important;
+        padding: 0 !important;
+        border: 1px solid rgba(20, 40, 80, .12) !important;
+        border-radius: 14px !important;
+        background: rgba(255, 255, 255, .72) !important;
+        color: #15396d !important;
+        box-shadow: 0 8px 20px rgba(15, 30, 56, .1) !important;
+        cursor: pointer;
+    }
+
+    body.user-portal .mobile-section-menu-btn i { font-size: 16px; }
+
+    body.user-portal .mobile-section-drawer-backdrop:not([hidden]) {
+        display: block !important;
+        position: fixed !important;
+        z-index: 1090 !important;
+        inset: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: rgba(9, 22, 42, .38) !important;
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+    }
+
+    body.user-portal .mobile-section-drawer:not([hidden]) {
+        display: flex !important;
+        position: fixed !important;
+        z-index: 1100 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        flex-direction: column !important;
+        gap: 24px !important;
+        width: min(310px, 84vw) !important;
+        padding: 22px 16px calc(24px + env(safe-area-inset-bottom)) !important;
+        overflow-y: auto !important;
+        border: 0 !important;
+        border-right: 1px solid rgba(255, 255, 255, .56) !important;
+        border-radius: 0 26px 26px 0 !important;
+        background: rgba(248, 251, 255, .88) !important;
+        box-shadow: 18px 0 46px rgba(15, 30, 56, .2) !important;
+        backdrop-filter: blur(24px) saturate(145%);
+        -webkit-backdrop-filter: blur(24px) saturate(145%);
+    }
+
+    body.user-portal .mobile-section-drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 4px 4px 16px;
+        border-bottom: 1px solid rgba(20, 40, 80, .12);
+    }
+
+    body.user-portal .mobile-section-drawer-header strong {
+        display: block;
+        margin-top: 4px;
+        color: #142850;
+        font-size: 1.15rem;
+    }
+
+    body.user-portal .mobile-section-drawer-close {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border: 1px solid rgba(20, 40, 80, .12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .62);
+        color: #15396d;
+        cursor: pointer;
+    }
+
+    body.user-portal .mobile-section-nav,
+    body.user-portal .mobile-sidebar-granted {
+        display: grid;
+        gap: 9px;
+    }
+
+    body.user-portal .mobile-section-nav > a,
+    body.user-portal .mobile-sidebar-granted > button {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 52px;
+        padding: 0 14px;
+        gap: 12px;
+        border: 1px solid rgba(20, 40, 80, .1);
+        border-radius: 15px;
+        background: rgba(255, 255, 255, .56);
+        color: #24324a;
+        font: inherit;
+        font-weight: 800;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    body.user-portal .mobile-section-nav > a i,
+    body.user-portal .mobile-sidebar-granted > button i {
+        width: 20px;
+        color: #60708b;
+        text-align: center;
+    }
+
+    body.user-portal .mobile-section-nav > a:hover,
+    body.user-portal .mobile-section-nav > a.active,
+    body.user-portal .mobile-sidebar-granted > button:hover,
+    body.user-portal .mobile-sidebar-granted > button.active {
+        border-color: transparent;
+        background: #15396d;
+        color: #fff;
+    }
+
+    body.user-portal .mobile-section-nav > a:hover i,
+    body.user-portal .mobile-section-nav > a.active i,
+    body.user-portal .mobile-sidebar-granted > button:hover i,
+    body.user-portal .mobile-sidebar-granted > button.active i {
+        color: #fff;
+    }
+
+    body.mobile-section-drawer-open { overflow: hidden !important; }
+
+    body.dark-mode.user-portal .mobile-section-menu-btn {
+        border-color: rgba(255, 255, 255, .16) !important;
+        background: rgba(16, 29, 48, .74) !important;
+        color: #eef4ff !important;
+    }
+
+    body.dark-mode.user-portal .mobile-section-drawer:not([hidden]) {
+        border-color: rgba(255, 255, 255, .15) !important;
+        background: rgba(16, 29, 48, .9) !important;
+    }
+
+    body.dark-mode.user-portal .mobile-section-drawer-header {
+        border-color: rgba(255, 255, 255, .13);
+    }
+
+    body.dark-mode.user-portal .mobile-section-drawer-header strong,
+    body.dark-mode.user-portal .mobile-section-drawer-close,
+    body.dark-mode.user-portal .mobile-section-nav > a,
+    body.dark-mode.user-portal .mobile-sidebar-granted > button {
+        color: #eef4ff;
+    }
+
+    body.dark-mode.user-portal .mobile-section-drawer-close,
+    body.dark-mode.user-portal .mobile-section-nav > a,
+    body.dark-mode.user-portal .mobile-sidebar-granted > button {
+        border-color: rgba(255, 255, 255, .13);
+        background: rgba(255, 255, 255, .08);
+    }
+}
+
+@media (max-width: 620px) {
+    body.user-portal header {
+        display: grid !important;
+        grid-template-columns: 40px 38px minmax(0, 1fr) 40px !important;
+        grid-template-areas: "menu logo title profile" !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    body.user-portal .mobile-section-menu-btn { grid-area: menu !important; }
+
+    body.user-portal .logo,
+    body.user-portal .logo img {
+        flex: 0 0 38px !important;
+        width: 38px !important;
+        height: 38px !important;
+    }
+
+    body.user-portal .logo { grid-area: logo !important; }
+
+    body.user-portal .header-title-section {
+        grid-area: title !important;
+        min-width: 0 !important;
+    }
+
+    body.user-portal .header-title-section h1 {
+        font-size: .98rem !important;
+        letter-spacing: -.04em !important;
+    }
+
+    body.user-portal #user-info,
+    body.user-portal #super-admin-entry,
+    body.user-portal #header-profile-name,
+    body.user-portal .user-dropdown-btn > i {
+        display: none !important;
+    }
+
+    body.user-portal .header-right {
+        display: contents !important;
+    }
+
+    body.user-portal .user-dropdown {
+        grid-area: profile !important;
+    }
+
+    body.user-portal .user-dropdown-btn {
+        display: grid !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        padding: 0 !important;
+        place-items: center !important;
+    }
+
+    body.user-portal .header-profile-avatar {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    body.user-portal {
+        padding-bottom: calc(148px + env(safe-area-inset-bottom)) !important;
+    }
+
+    body.user-portal .profile-page-password {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+        padding-bottom: 8px !important;
+    }
+
+    body.user-portal .profile-page-password .profile-page-form {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.user-portal .profile-page-password .profile-page-form > label {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 7px !important;
+    }
+
+    body.user-portal .profile-page-password .password-field {
+        display: block !important;
+        position: relative !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 50px !important;
+    }
+
+    body.user-portal .profile-page-password .password-field > input {
+        display: block !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 50px !important;
+        padding: 12px 52px 12px 14px !important;
+        border: 1px solid #cbd7e6 !important;
+        border-radius: 12px !important;
+        background: #fff !important;
+        color: #14223b !important;
+        font-size: 16px !important;
+        line-height: 1.4 !important;
+    }
+
+    body.user-portal .profile-page-password .password-field > input::placeholder {
+        color: #77869c !important;
+        opacity: 1 !important;
+    }
+
+    body.user-portal .profile-page-password .password-visibility-toggle {
+        position: absolute !important;
+        top: 50% !important;
+        right: 7px !important;
+        left: auto !important;
+        display: grid !important;
+        width: 38px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: translateY(-50%) !important;
+        border-radius: 10px !important;
+        background: transparent !important;
+        color: #47617f !important;
+    }
+
+    body.dark-mode.user-portal .profile-page-password .password-field > input {
+        border-color: rgba(255, 255, 255, .2) !important;
+        background: #16253b !important;
+        color: #eef4ff !important;
+    }
+
+    body.dark-mode.user-portal .profile-page-password .password-field > input::placeholder {
+        color: #bac9df !important;
+    }
+
+    body.dark-mode.user-portal .profile-page-password .password-visibility-toggle {
+        color: #c1d3ea !important;
+    }
+}
+
+/* Share one interaction style between mobile drawer links and section buttons. */
+body.user-portal .mobile-section-nav > .mobile-section-entry,
+body.user-portal .mobile-sidebar-granted > .mobile-section-entry {
+    box-sizing: border-box;
+    font: inherit;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+body.user-portal .mobile-section-entry:focus-visible {
+    outline: 3px solid rgba(29, 112, 214, .35);
+    outline-offset: 2px;
+}
+
+/* The standalone archive page uses links instead of the in-app view buttons.
+   Keep its header visible and reuse the same compact mobile dock. */
+body.archive-page > header {
+    display: flex !important;
+    position: sticky !important;
+    top: 6px !important;
+    z-index: 200 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 900px) {
+    body.archive-page .user-sidebar-nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    body.archive-page .user-sidebar-nav > .mobile-section-entry {
+        display: grid !important;
+        flex: none !important;
+        place-items: center !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 54px !important;
+        padding: 8px 6px !important;
+        gap: 0 !important;
+        border-radius: 16px !important;
+        color: #60708b !important;
+        text-decoration: none !important;
+    }
+
+    body.archive-page .user-sidebar-nav > .mobile-section-entry > span:not(.chat-nav-unread) {
+        display: none !important;
+    }
+
+    body.archive-page .user-sidebar-nav > .mobile-section-entry > i {
+        width: auto !important;
+        color: currentColor !important;
+        font-size: 19px !important;
+    }
+
+    body.archive-page .user-sidebar-nav > .mobile-section-entry.active,
+    body.archive-page .user-sidebar-nav > .mobile-section-entry[aria-current="page"] {
+        background: #15396d !important;
+        color: #fff !important;
+        box-shadow: 0 8px 18px rgba(21, 57, 109, .28) !important;
+    }
+
+    body.archive-page .user-sidebar-nav > .mobile-section-entry:focus-visible {
+        outline: 3px solid rgba(29, 112, 214, .35);
+        outline-offset: 2px;
+    }
+}
+
+@media (max-width: 620px) {
+    body.archive-page > header {
+        display: grid !important;
+        grid-template-columns: 38px minmax(0, 1fr) 40px !important;
+        grid-template-areas: "brand title account" !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+    }
+
+    body.archive-page > header .logo,
+    body.archive-page > header .logo img {
+        width: 38px !important;
+        height: 38px !important;
+    }
+
+    body.archive-page > header .logo {
+        grid-area: brand !important;
+    }
+
+    body.archive-page > header .header-title-section {
+        grid-area: title !important;
+        min-width: 0 !important;
+    }
+
+    body.archive-page > header .header-title-section h1 {
+        overflow: hidden !important;
+        font-size: .98rem !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body.archive-page > header #user-info {
+        display: none !important;
+    }
+
+    body.archive-page > header .header-right {
+        display: contents !important;
+    }
+
+    body.archive-page > header .user-dropdown {
+        grid-area: account !important;
+    }
+
+    body.archive-page > header .user-dropdown-btn {
+        display: grid !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        padding: 0 !important;
+        place-items: center !important;
+    }
+
+    body.archive-page > header .header-profile-avatar {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    body.archive-page > header #header-profile-name,
+    body.archive-page > header .user-dropdown-btn > i {
+        display: none !important;
     }
 }

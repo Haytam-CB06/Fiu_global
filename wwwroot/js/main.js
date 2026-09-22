@@ -150,10 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
         notificationList: document.getElementById('notification-list'),
         platformsContainer: document.querySelector('.platforms-container'),
         announcementsContainer: document.querySelector('.announcements-container'),
-        announcementsSlider: document.getElementById('announcements-slider'),
-        announcementsDots: document.getElementById('announcements-dots'),
-        announcementsPrevBtn: document.getElementById('announcements-prev-btn'),
-        announcementsNextBtn: document.getElementById('announcements-next-btn'),
+        announcementsList: document.getElementById('announcements-list'),
         archiveContainer: document.getElementById('archive-container'),
         diningMenuContainer: document.querySelector('.dining-menu-container'),
         diningMenuSlider: document.getElementById('dining-menu-slider'),
@@ -188,13 +185,13 @@ document.addEventListener('DOMContentLoaded', function() {
         touchEndX: 0
     };
 
-    // Announcements slider state
+    // Announcements list state
     let announcementsState = {
-        currentSlide: 0,
         totalSlides: 0,
         slides: [],
-        touchStartX: 0,
-        touchEndX: 0
+        currentPage: 1,
+        pageSize: 6,
+        searchQuery: ''
     };
 
     let diningCalendarState = {
@@ -259,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setupDiningMenuSlider();
         setupDiningCalendar();
         setupDiningMenuImport();
-        setupAnnouncementsSlider();
         setupDashboardQuickActions();
     }
 
@@ -613,13 +609,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupUserSidebar() {
         const navigation = document.getElementById('user-sidebar-nav');
+        const mobileNavigation = document.getElementById('mobile-section-nav');
+        const menuButton = document.getElementById('mobile-section-menu-btn');
+        const drawer = document.getElementById('mobile-section-drawer');
+        const closeButton = document.getElementById('mobile-section-drawer-close');
+        const backdrop = document.getElementById('mobile-section-drawer-backdrop');
         document.body.classList.remove('user-sidebar-collapsed');
         localStorage.removeItem('user_sidebar_collapsed');
-        if (!navigation) return;
-        navigation.addEventListener('click', event => {
+
+        const handleNavigationClick = event => {
             const button = event.target.closest('[data-user-view]');
-            if (!button) return;
-            navigateUserView(button.dataset.userView, button.dataset.sectionKey);
+            if (button) {
+                navigateUserView(button.dataset.userView, button.dataset.sectionKey);
+                setMobileSectionDrawerOpen(false);
+                return;
+            }
+            if (event.target.closest('a[href]')) setMobileSectionDrawerOpen(false);
+        };
+
+        navigation?.addEventListener('click', handleNavigationClick);
+        mobileNavigation?.addEventListener('click', handleNavigationClick);
+        menuButton?.addEventListener('click', () => setMobileSectionDrawerOpen(drawer?.hidden !== false));
+        closeButton?.addEventListener('click', () => setMobileSectionDrawerOpen(false));
+        backdrop?.addEventListener('click', () => setMobileSectionDrawerOpen(false));
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Escape') setMobileSectionDrawerOpen(false);
         });
 
         window.addEventListener('popstate', () => {
@@ -627,6 +641,16 @@ document.addEventListener('DOMContentLoaded', function() {
             showUserView(route.view, route.sectionKey);
         });
 
+    }
+
+    function setMobileSectionDrawerOpen(open) {
+        const drawer = document.getElementById('mobile-section-drawer');
+        const backdrop = document.getElementById('mobile-section-drawer-backdrop');
+        const menuButton = document.getElementById('mobile-section-menu-btn');
+        if (drawer) drawer.hidden = !open;
+        if (backdrop) backdrop.hidden = !open;
+        menuButton?.setAttribute('aria-expanded', String(open));
+        document.body.classList.toggle('mobile-section-drawer-open', open);
     }
 
     function renderUserSidebar(user) {
@@ -642,8 +666,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const allowed = Array.isArray(user.allowed_sections)
             ? user.allowed_sections.map(section => String(section).toLowerCase())
             : ['platforms', 'announcements', 'dining-menu'];
-        const host = document.getElementById('user-sidebar-granted');
-        if (host) host.innerHTML = allowed.filter(section => labels[section]).map(section => `<button type="button" data-user-view="section" data-section-key="${section}"><i class="fas ${labels[section][0]}"></i><span>${labels[section][1]}</span></button>`).join('');
+        const markup = allowed.filter(section => labels[section]).map(section => `<button type="button" class="mobile-section-entry" data-user-view="section" data-section-key="${section}"><i class="fas ${labels[section][0]}" aria-hidden="true"></i><span>${labels[section][1]}</span></button>`).join('');
+        document.getElementById('user-sidebar-granted')?.replaceChildren();
+        document.getElementById('user-sidebar-granted')?.insertAdjacentHTML('beforeend', markup);
+        document.getElementById('mobile-sidebar-granted')?.replaceChildren();
+        document.getElementById('mobile-sidebar-granted')?.insertAdjacentHTML('beforeend', markup);
     }
 
     function getPortalBasePath() {
@@ -698,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('portal-view-dashboard', 'portal-view-chat', 'portal-view-profile', 'portal-view-platforms', 'portal-view-dining-menu', 'portal-view-announcements');
         const viewClass = view === 'section' ? `portal-view-${sectionKey || 'dashboard'}` : `portal-view-${view || 'dashboard'}`;
         document.body.classList.add(viewClass);
-        document.querySelectorAll('#user-sidebar-nav [data-user-view]').forEach(button => button.classList.toggle('active', button.dataset.userView === view && (!sectionKey || button.dataset.sectionKey === sectionKey)));
+        document.querySelectorAll('#user-sidebar-nav [data-user-view], #mobile-section-nav [data-user-view]').forEach(button => button.classList.toggle('active', button.dataset.userView === view && (!sectionKey || button.dataset.sectionKey === sectionKey)));
         const showDashboard = view === 'dashboard' || (view === 'section' && sectionKey === 'platforms');
         const isPlatformsRoute = view === 'section' && sectionKey === 'platforms';
         const showDining = canUseDining && view === 'section' && sectionKey === 'dining-menu';
@@ -1197,8 +1224,13 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     async function handleLogout() {
         try {
-            await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
-        } catch (_) {}
+            const response = await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            if (!response.ok) throw new Error('The server did not confirm logout.');
+        } catch (error) {
+            console.error('Could not finish the server session:', error);
+            showNotification(portalT('auth.logoutFailed', 'Could not finish your session. Check your connection and try again.'), 'error');
+            return;
+        }
         const preserved = {};
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith('tour_seen_') || key.startsWith('tour_completed_')) {
@@ -2212,12 +2244,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadAnnouncements() {
         const user = getUserFromStorage();
         if (user && !hasSectionAccess(user, 'announcements')) return;
-        if (!elements.announcementsSlider) {
-            console.error('Announcements slider not found');
+        if (!elements.announcementsList) {
+            console.error('Announcements list not found');
             return;
         }
 
-        elements.announcementsSlider.innerHTML = '';
+        setupAnnouncementControls();
+        elements.announcementsList.replaceChildren();
 
         fetch(`${API_BASE_URL}?endpoint=announcements`)
             .then(response => {
@@ -2227,7 +2260,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log('Announcements data received:', data);
                 if (data.success && data.announcements && data.announcements.length > 0) {
-                    console.log('Creating announcement slides for:', data.announcements.length, 'announcements');
                     // Filter announcements by target audience based on user role
                     const user = getUserFromStorage();
                     const role = (user && user.role) ? String(user.role).toLowerCase().trim() : 'instructor';
@@ -2245,30 +2277,129 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     announcementsState.slides = filtered;
                     announcementsState.totalSlides = filtered.length;
-                    announcementsState.currentSlide = 0;
-
-                    filtered.forEach((announcement, index) => {
-                        const slideDiv = document.createElement('div');
-                        slideDiv.className = 'announcements-slide';
-                        createAnnouncementCard(announcement, slideDiv);
-                        elements.announcementsSlider.appendChild(slideDiv);
-                    });
-
-                    updateAnnouncementsNavigation();
-                    createAnnouncementsDots();
+                    announcementsState.currentPage = 1;
+                    renderAnnouncementFeed();
                     renderDashboardFocusCards();
                 } else {
-                    elements.announcementsSlider.innerHTML = `<div class="announcements-slide"><p>${portalT('announcements.empty', 'No announcements found.')}</p></div>`;
                     announcementsState.slides = [];
+                    announcementsState.totalSlides = 0;
+                    announcementsState.currentPage = 1;
+                    renderAnnouncementFeed();
                     renderDashboardFocusCards();
                 }
             })
             .catch(error => {
                 console.error('Error loading announcements:', error);
-                elements.announcementsSlider.innerHTML = `<div class="announcements-slide"><p>${portalT('announcements.error', 'Error loading announcements.')}</p></div>`;
+                elements.announcementsList.innerHTML = `<p class="announcements-empty">${portalT('announcements.error', 'Error loading announcements.')}</p>`;
                 announcementsState.slides = [];
+                announcementsState.totalSlides = 0;
+                announcementsState.currentPage = 1;
+                renderAnnouncementFeed(portalT('announcements.error', 'Error loading announcements.'));
                 renderDashboardFocusCards();
             });
+    }
+
+    function setupAnnouncementControls() {
+        const search = document.getElementById('announcements-search');
+        const previous = document.getElementById('announcements-page-prev');
+        const next = document.getElementById('announcements-page-next');
+        if (search && search.dataset.bound !== 'true') {
+            search.dataset.bound = 'true';
+            search.addEventListener('input', () => {
+                announcementsState.searchQuery = search.value;
+                announcementsState.currentPage = 1;
+                renderAnnouncementFeed();
+            });
+        }
+        if (previous && previous.dataset.bound !== 'true') {
+            previous.dataset.bound = 'true';
+            previous.addEventListener('click', () => {
+                if (announcementsState.currentPage <= 1) return;
+                announcementsState.currentPage -= 1;
+                renderAnnouncementFeed();
+            });
+        }
+        if (next && next.dataset.bound !== 'true') {
+            next.dataset.bound = 'true';
+            next.addEventListener('click', () => {
+                const pageCount = Math.ceil(getMatchingAnnouncements().length / announcementsState.pageSize);
+                if (announcementsState.currentPage >= pageCount) return;
+                announcementsState.currentPage += 1;
+                renderAnnouncementFeed();
+            });
+        }
+        if (search) search.value = announcementsState.searchQuery;
+    }
+
+    function normalizeAnnouncementSearch(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLocaleLowerCase()
+            .replace(/[^\p{L}\p{N}]+/gu, ' ')
+            .trim();
+    }
+
+    function getMatchingAnnouncements() {
+        const terms = normalizeAnnouncementSearch(announcementsState.searchQuery).split(/\s+/).filter(Boolean);
+        if (!terms.length) return announcementsState.slides;
+        return announcementsState.slides.filter(announcement => {
+            const createdAt = announcement.created_at || '';
+            const date = new Date(createdAt);
+            const searchableText = normalizeAnnouncementSearch([
+                announcement.title,
+                announcement.content,
+                announcement.author_name,
+                announcement.priority,
+                announcement.target_audience,
+                createdAt,
+                Number.isNaN(date.getTime()) ? '' : portalFormatDate(date)
+            ].join(' '));
+            return terms.every(term => searchableText.includes(term));
+        });
+    }
+
+    function renderAnnouncementFeed(emptyStateMessage = '') {
+        const list = elements.announcementsList;
+        if (!list) return;
+        const matches = getMatchingAnnouncements();
+        const pageCount = Math.max(1, Math.ceil(matches.length / announcementsState.pageSize));
+        announcementsState.currentPage = Math.min(Math.max(1, announcementsState.currentPage), pageCount);
+        const startIndex = (announcementsState.currentPage - 1) * announcementsState.pageSize;
+        const pageItems = matches.slice(startIndex, startIndex + announcementsState.pageSize);
+        list.replaceChildren();
+
+        if (!matches.length) {
+            const empty = document.createElement('p');
+            empty.className = 'announcements-empty';
+            empty.textContent = emptyStateMessage || (announcementsState.searchQuery.trim()
+                ? portalT('archive.noAnnouncementsFiltered', 'No announcements match this search.')
+                : portalT('announcements.empty', 'No announcements found.'));
+            list.appendChild(empty);
+        } else {
+            pageItems.forEach(announcement => createAnnouncementCard(announcement, list));
+        }
+
+        const results = document.getElementById('announcements-results');
+        if (results) {
+            results.hidden = !matches.length;
+            results.textContent = portalT('pagination.showing', 'Showing {visible} of {total}', {
+                visible: pageItems.length,
+                total: matches.length
+            });
+        }
+
+        const pagination = document.getElementById('announcements-pagination');
+        const status = document.getElementById('announcements-page-status');
+        const previous = document.getElementById('announcements-page-prev');
+        const next = document.getElementById('announcements-page-next');
+        if (pagination) pagination.hidden = pageCount <= 1;
+        if (status) status.textContent = portalT('pagination.pageOf', 'Page {page} of {total}', {
+            page: announcementsState.currentPage,
+            total: pageCount
+        });
+        if (previous) previous.disabled = announcementsState.currentPage <= 1;
+        if (next) next.disabled = announcementsState.currentPage >= pageCount;
     }
 
     function loadArchive() {
@@ -2322,33 +2453,70 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {HTMLElement} container - Container to append the card to
      */
     function createAnnouncementCard(announcement, container) {
-        const announcementCard = document.createElement('div');
+        const listItem = document.createElement('article');
+        listItem.className = 'announcements-list-entry';
+        listItem.setAttribute('role', 'listitem');
+
+        const announcementCard = document.createElement('button');
+        announcementCard.type = 'button';
         const priority = String(announcement.priority || 'medium').toLowerCase();
         const isImportant = priority === 'high' || priority === 'urgent';
-        announcementCard.className = `announcement-card${isImportant ? ' is-important' : ''}`;
+        announcementCard.className = `announcement-card announcement-list-item${isImportant ? ' is-important' : ''}`;
         announcementCard.dataset.priority = priority;
-        
-        // Format the date with day name
+
         const date = new Date(announcement.created_at);
-        const formattedDate = portalFormatDate(date, {
+        const formattedDate = Number.isNaN(date.getTime()) ? '' : portalFormatDate(date, {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
             day: 'numeric'
-        }) + ' ' + portalFormatDateTime(date, { hour: '2-digit', minute:'2-digit' });
-        
-        announcementCard.innerHTML = `
-            ${isImportant ? `<span class="announcement-priority-tag"><i class="fas fa-bolt" aria-hidden="true"></i>${getAnnouncementPriorityLabel(priority)}</span>` : ''}
-            <h3>${announcement.title}</h3>
-            <div class="announcement-date">${formattedDate}</div>
-        `;
-        
-        // Add click event to show full announcement
+        }) + ' · ' + portalFormatDateTime(date, { hour: '2-digit', minute: '2-digit' });
+
+        if (isImportant) {
+            const badge = document.createElement('span');
+            badge.className = 'announcement-priority-tag';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-bolt';
+            icon.setAttribute('aria-hidden', 'true');
+            badge.append(icon, document.createTextNode(getAnnouncementPriorityLabel(priority)));
+            announcementCard.appendChild(badge);
+        }
+
+        const title = document.createElement('h3');
+        title.textContent = announcement.title || portalT('announcements.title', 'Campus announcement');
+        announcementCard.appendChild(title);
+
+        const rawContent = String(announcement.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (rawContent) {
+            const excerpt = document.createElement('p');
+            excerpt.className = 'announcement-excerpt';
+            excerpt.textContent = rawContent;
+            announcementCard.appendChild(excerpt);
+        }
+
+        if (formattedDate) {
+            const time = document.createElement('time');
+            time.className = 'announcement-date';
+            time.dateTime = date.toISOString();
+            time.textContent = formattedDate;
+            announcementCard.appendChild(time);
+        }
+
+        const openLabel = document.createElement('span');
+        openLabel.className = 'announcement-open-label';
+        openLabel.textContent = portalT('announcements.read', 'Read announcement');
+        const arrow = document.createElement('i');
+        arrow.className = 'fas fa-arrow-right';
+        arrow.setAttribute('aria-hidden', 'true');
+        openLabel.appendChild(arrow);
+        announcementCard.appendChild(openLabel);
+
         announcementCard.addEventListener('click', () => {
             showAnnouncementModal(announcement);
         });
-        
-        container.appendChild(announcementCard);
+
+        listItem.appendChild(announcementCard);
+        container.appendChild(listItem);
     }
 
     /**
@@ -3055,150 +3223,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // =============================================================================
-    // ANNOUNCEMENTS SLIDER FUNCTIONS
-    // =============================================================================
-
-    /**
-     * Sets up announcements slider functionality
-     */
-    function setupAnnouncementsSlider() {
-        if (elements.announcementsPrevBtn) {
-            elements.announcementsPrevBtn.addEventListener('click', () => {
-                navigateAnnouncements('prev');
-            });
-        }
-
-        if (elements.announcementsNextBtn) {
-            elements.announcementsNextBtn.addEventListener('click', () => {
-                navigateAnnouncements('next');
-            });
-        }
-
-        // Touch events for swipe
-        if (elements.announcementsSlider) {
-            elements.announcementsSlider.addEventListener('touchstart', handleAnnouncementsTouchStart);
-            elements.announcementsSlider.addEventListener('touchend', handleAnnouncementsTouchEnd);
-        }
-    }
-
-    /**
-     * Handles touch start event for announcements
-     */
-    function handleAnnouncementsTouchStart(e) {
-        announcementsState.touchStartX = e.changedTouches[0].screenX;
-    }
-
-    /**
-     * Handles touch end event for announcements
-     */
-    function handleAnnouncementsTouchEnd(e) {
-        announcementsState.touchEndX = e.changedTouches[0].screenX;
-        handleAnnouncementsSwipe();
-    }
-
-    /**
-     * Handles swipe gesture for announcements
-     */
-    function handleAnnouncementsSwipe() {
-        const swipeThreshold = 50;
-        const diff = announcementsState.touchStartX - announcementsState.touchEndX;
-
-        if (Math.abs(diff) > swipeThreshold) {
-            if (diff > 0) {
-                // Swipe left - next slide
-                navigateAnnouncements('next');
-            } else {
-                // Swipe right - previous slide
-                navigateAnnouncements('prev');
-            }
-        }
-    }
-
-    /**
-     * Navigates to previous or next announcements slide
-     */
-    function navigateAnnouncements(direction) {
-        if (announcementsState.totalSlides === 0) return;
-
-        if (direction === 'prev' && announcementsState.currentSlide > 0) {
-            announcementsState.currentSlide--;
-        } else if (direction === 'next' && announcementsState.currentSlide < announcementsState.totalSlides - 1) {
-            announcementsState.currentSlide++;
-        }
-
-        updateAnnouncementsSlider();
-        updateAnnouncementsNavigation();
-        updateAnnouncementsDots();
-    }
-
-    /**
-     * Updates the announcements slider position
-     */
-    function updateAnnouncementsSlider() {
-        if (elements.announcementsSlider) {
-            const translateX = -announcementsState.currentSlide * 100;
-            elements.announcementsSlider.style.transform = `translateX(${translateX}%)`;
-        }
-    }
-
-    /**
-     * Updates announcements navigation buttons
-     */
-    function updateAnnouncementsNavigation() {
-        if (elements.announcementsPrevBtn) {
-            elements.announcementsPrevBtn.style.display = announcementsState.currentSlide > 0 ? 'flex' : 'none';
-            elements.announcementsPrevBtn.disabled = announcementsState.currentSlide === 0;
-        }
-
-        if (elements.announcementsNextBtn) {
-            elements.announcementsNextBtn.style.display = announcementsState.currentSlide < announcementsState.totalSlides - 1 ? 'flex' : 'none';
-            elements.announcementsNextBtn.disabled = announcementsState.currentSlide === announcementsState.totalSlides - 1;
-        }
-    }
-
-    /**
-     * Creates navigation dots for announcements
-     */
-    function createAnnouncementsDots() {
-        if (!elements.announcementsDots) return;
-
-        elements.announcementsDots.innerHTML = '';
-        
-        for (let i = 0; i < announcementsState.totalSlides; i++) {
-            const dot = document.createElement('button');
-            dot.type = 'button';
-            dot.className = 'announcements-dot';
-            dot.setAttribute('aria-label', `Show announcement ${i + 1}`);
-            dot.setAttribute('aria-current', i === 0 ? 'true' : 'false');
-            if (i === 0) dot.classList.add('active');
-            
-            dot.addEventListener('click', () => {
-                announcementsState.currentSlide = i;
-                updateAnnouncementsSlider();
-                updateAnnouncementsNavigation();
-                updateAnnouncementsDots();
-            });
-            
-            elements.announcementsDots.appendChild(dot);
-        }
-    }
-
-    /**
-     * Updates announcements dots
-     */
-    function updateAnnouncementsDots() {
-        const dots = elements.announcementsDots?.querySelectorAll('.announcements-dot');
-        if (!dots) return;
-
-        dots.forEach((dot, index) => {
-            if (index === announcementsState.currentSlide) {
-                dot.classList.add('active');
-                dot.setAttribute('aria-current', 'true');
-            } else {
-                dot.classList.remove('active');
-                dot.setAttribute('aria-current', 'false');
-            }
-        });
-    }
 });

@@ -231,7 +231,14 @@ app.MapPost("/auth/logout", (HttpContext context, AppDataStore dataStore) =>
 {
     var token = context.Request.Cookies[SessionCookieName];
     dataStore.RemoveSession(token);
-    context.Response.Cookies.Delete(SessionCookieName);
+    context.Response.Cookies.Delete(SessionCookieName, new CookieOptions
+    {
+        Path = "/",
+        HttpOnly = true,
+        SameSite = SameSiteMode.Lax,
+        Secure = ShouldUseSecureCookies(context.Request),
+        IsEssential = true
+    });
     return Results.Json(new { success = true });
 });
 
@@ -311,6 +318,7 @@ app.MapGet("/auth/google/login", (HttpContext context) =>
         $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
         "&response_type=code" +
         "&scope=openid%20email%20profile" +
+        "&prompt=select_account" +
         "&hd=final.edu.tr" +
         "&include_granted_scopes=true" +
         "&code_challenge_method=S256" +
@@ -574,6 +582,9 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
             "check-date-availability" => HandleDateAvailability(request, store),
             "holiday-export" => HandleHolidayExport(request, store),
             "holiday-template" => HandleHolidayTemplate(request),
+            "user-import-template" => existingSession.IsSuperAdmin
+                ? HandleUserImportTemplate(store)
+                : Results.StatusCode(StatusCodes.Status403Forbidden),
             "dining-menu-template" => HandleDiningMenuTemplate(),
             "dining-menu-export" => HandleDiningMenuExport(request, store),
             "admin-by-username" => HandleAdminByUsername(request, store),
@@ -594,6 +605,12 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
 
         var form = await request.ReadFormAsync();
         var formAction = form["action"].ToString();
+        if (formAction == "user-import-upload")
+        {
+            if (!existingSession.IsSuperAdmin) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            return HandleUserImportUpload(form, store);
+        }
+
         if (formAction == "holiday-upload")
         {
             return await HandleHolidayUpload(form, store);
@@ -1016,6 +1033,16 @@ static IResult HandleDateAvailability(HttpRequest request, AppDataStore store)
         return Results.BadRequest(new { error = "Date parameter is required" });
     }
 
+    if (store.GetDiningMenuByDate(date) is not null)
+    {
+        return Results.Json(new
+        {
+            success = true,
+            available = false,
+            message = "A dining menu already exists for this date"
+        });
+    }
+
     var holiday = store.GetHolidayOrWeekend(date);
     if (holiday is null)
     {
@@ -1066,27 +1093,75 @@ static IResult HandleHolidayTemplate(HttpRequest request)
     var second = new DateOnly(year, 1, 15);
     var rows = new List<HolidayCsvRow>
     {
-        new(first.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), first.DayOfWeek.ToString(), "New Year's Day"),
-        new(second.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), second.DayOfWeek.ToString(), "University Closure")
+        new(first.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), string.Empty, "New Year's Day"),
+        new(second.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), string.Empty, "University Closure")
     };
-    if (request.Query["format"].ToString().Equals("xlsx", StringComparison.OrdinalIgnoreCase))
-    {
-        return Results.File(
-            BuildHolidayWorkbook(rows),
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"holiday_template_{year}.xlsx");
-    }
-
-    var content = new StringBuilder()
-        .AppendLine("Date,DayOfWeek,HolidayName")
-        .AppendLine($"{rows[0].Date},{rows[0].DayOfWeek},{EscapeCsv(rows[0].HolidayName)}")
-        .AppendLine($"{rows[1].Date},{rows[1].DayOfWeek},{EscapeCsv(rows[1].HolidayName)}")
-        .ToString();
-
-    return Results.File(Encoding.UTF8.GetBytes(content), "text/csv", $"holiday_template_{year}.csv");
+    return Results.File(
+        BuildHolidayWorkbook(rows, includeDayOfWeek: false),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"holiday_template_{year}.xlsx");
 }
 
-static byte[] BuildHolidayWorkbook(IEnumerable<HolidayCsvRow> holidayRows)
+static IResult HandleUserImportTemplate(AppDataStore store)
+{
+    return Results.File(
+        BuildUserImportTemplateWorkbook(store.GetAvailableUserRoles()),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "user_import_template.xlsx");
+}
+
+static byte[] BuildUserImportTemplateWorkbook(IReadOnlyCollection<string> roles)
+{
+    var roleList = roles.Where(role => !string.IsNullOrWhiteSpace(role)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    if (roleList.Count == 0) roleList = ["student", "instructor"];
+
+    using var stream = new MemoryStream();
+    using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        AddZipEntry(archive, "[Content_Types].xml", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>
+            """);
+        AddZipEntry(archive, "_rels/.rels", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>
+            """);
+        AddZipEntry(archive, "xl/workbook.xml", $"""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Users" sheetId="1" r:id="rId1"/><sheet name="Roles" sheetId="2" state="hidden" r:id="rId2"/></sheets><definedNames><definedName name="UserRoles">Roles!$A$1:$A${roleList.Count}</definedName></definedNames></workbook>
+            """);
+        AddZipEntry(archive, "xl/_rels/workbook.xml.rels", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>
+            """);
+
+        var usersSheet = new StringBuilder()
+            .Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
+            .Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+            .Append("<dimension ref=\"A1:D501\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols>")
+            .Append("<col min=\"1\" max=\"1\" width=\"26\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"36\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"24\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"28\" customWidth=\"1\"/>")
+            .Append("</cols><sheetData><row r=\"1\">");
+        var headers = new[] { "Username", "Email", "Role", "Password" };
+        for (var column = 0; column < headers.Length; column++) AppendInlineStringCell(usersSheet, column, 1, headers[column]);
+        usersSheet.Append("</row></sheetData><autoFilter ref=\"A1:D1\"/><dataValidations count=\"1\"><dataValidation type=\"list\" allowBlank=\"1\" showErrorMessage=\"1\" showInputMessage=\"1\" errorTitle=\"Invalid role\" error=\"Choose a role from the list.\" promptTitle=\"Role\" prompt=\"Choose an existing portal role.\" sqref=\"C2:C501\"><formula1>UserRoles</formula1></dataValidation></dataValidations></worksheet>");
+        AddZipEntry(archive, "xl/worksheets/sheet1.xml", usersSheet.ToString());
+
+        var rolesSheet = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+        for (var index = 0; index < roleList.Count; index++)
+        {
+            var rowNumber = index + 1;
+            rolesSheet.Append($"<row r=\"{rowNumber}\">");
+            AppendInlineStringCell(rolesSheet, 0, rowNumber, roleList[index]);
+            rolesSheet.Append("</row>");
+        }
+        rolesSheet.Append("</sheetData></worksheet>");
+        AddZipEntry(archive, "xl/worksheets/sheet2.xml", rolesSheet.ToString());
+    }
+
+    return stream.ToArray();
+}
+
+static byte[] BuildHolidayWorkbook(IEnumerable<HolidayCsvRow> holidayRows, bool includeDayOfWeek = true)
 {
     var rows = holidayRows.ToList();
     using var stream = new MemoryStream();
@@ -1108,21 +1183,26 @@ static byte[] BuildHolidayWorkbook(IEnumerable<HolidayCsvRow> holidayRows)
             """);
 
         var lastRow = Math.Max(1, rows.Count + 1);
+        var lastColumn = includeDayOfWeek ? "C" : "B";
         var worksheet = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
-            .Append("<dimension ref=\"A1:C").Append(lastRow).Append("\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols><col min=\"1\" max=\"1\" width=\"16\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"16\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"34\" customWidth=\"1\"/></cols><sheetData>");
-        var headers = new[] { "Date", "DayOfWeek", "HolidayName" };
+            .Append("<dimension ref=\"A1:").Append(lastColumn).Append(lastRow).Append("\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols><col min=\"1\" max=\"1\" width=\"16\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"34\" customWidth=\"1\"/>")
+            .Append(includeDayOfWeek ? "<col min=\"3\" max=\"3\" width=\"34\" customWidth=\"1\"/>" : string.Empty)
+            .Append("</cols><sheetData>");
+        var headers = includeDayOfWeek ? new[] { "Date", "DayOfWeek", "HolidayName" } : new[] { "Date", "HolidayName" };
         worksheet.Append("<row r=\"1\">");
         for (var column = 0; column < headers.Length; column++) AppendInlineStringCell(worksheet, column, 1, headers[column]);
         worksheet.Append("</row>");
         for (var index = 0; index < rows.Count; index++)
         {
             var rowNumber = index + 2;
-            var values = new[] { rows[index].Date, rows[index].DayOfWeek, rows[index].HolidayName };
+            var values = includeDayOfWeek
+                ? new[] { rows[index].Date, rows[index].DayOfWeek, rows[index].HolidayName }
+                : new[] { rows[index].Date, rows[index].HolidayName };
             worksheet.Append($"<row r=\"{rowNumber}\">");
             for (var column = 0; column < values.Length; column++) AppendInlineStringCell(worksheet, column, rowNumber, values[column]);
             worksheet.Append("</row>");
         }
-        worksheet.Append("</sheetData><autoFilter ref=\"A1:C").Append(lastRow).Append("\"/></worksheet>");
+        worksheet.Append("</sheetData><autoFilter ref=\"A1:").Append(lastColumn).Append(lastRow).Append("\"/></worksheet>");
         AddZipEntry(archive, "xl/worksheets/sheet1.xml", worksheet.ToString());
     }
     return stream.ToArray();
@@ -1599,9 +1679,9 @@ static async Task<(List<HolidayCsvRow> Rows, List<string> Errors)> ReadHolidayRo
             for (var index = 0; index < sourceRows.Count; index++)
             {
                 var values = sourceRows[index];
-                if (values.Count < 3)
+                if (values.Count < 2)
                 {
-                    errors.Add($"Row {index + 2}: expected Date, DayOfWeek and HolidayName.");
+                    errors.Add($"Row {index + 2}: expected Date and HolidayName.");
                     continue;
                 }
                 var dateValue = values[0];
@@ -1609,7 +1689,12 @@ static async Task<(List<HolidayCsvRow> Rows, List<string> Errors)> ReadHolidayRo
                 {
                     dateValue = DateTime.FromOADate(serial).ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
                 }
-                rows.Add(new HolidayCsvRow(dateValue.Trim(), values[1].Trim(), values[2].Trim()));
+                // New templates have only Date and HolidayName. Continue to
+                // accept older exported files that include DayOfWeek in column B.
+                var holidayName = values.Count >= 3 && IsWeekdayName(values[1])
+                    ? values[2]
+                    : values[1];
+                rows.Add(new HolidayCsvRow(dateValue.Trim(), string.Empty, holidayName.Trim()));
             }
             return (rows, errors);
         }
@@ -1632,14 +1717,72 @@ static async Task<(List<HolidayCsvRow> Rows, List<string> Errors)> ReadHolidayRo
         lineIndex++;
         if (lineIndex == 1 || string.IsNullOrWhiteSpace(line)) continue;
         var columns = ParseCsvLine(line);
-        if (columns.Count < 3)
+        if (columns.Count < 2)
         {
-            errors.Add($"Row {lineIndex}: expected Date, DayOfWeek and HolidayName.");
+            errors.Add($"Row {lineIndex}: expected Date and HolidayName.");
             continue;
         }
-        rows.Add(new HolidayCsvRow(columns[0].Trim(), columns[1].Trim(), columns[2].Trim()));
+        var holidayName = columns.Count >= 3 && IsWeekdayName(columns[1])
+            ? columns[2]
+            : columns[1];
+        rows.Add(new HolidayCsvRow(columns[0].Trim(), string.Empty, holidayName.Trim()));
     }
     return (rows, errors);
+}
+
+static bool IsWeekdayName(string value) =>
+    Enum.TryParse<DayOfWeek>(value?.Trim(), ignoreCase: true, out _);
+
+static IResult HandleUserImportUpload(IFormCollection form, AppDataStore store)
+{
+    var file = form.Files["file"];
+    if (file is null || file.Length == 0)
+    {
+        return Results.BadRequest(new { success = false, error = "Choose an Excel (.xlsx) file." });
+    }
+    if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.BadRequest(new { success = false, error = "Only Excel (.xlsx) files are supported for user imports." });
+    }
+    if (file.Length > 5 * 1024 * 1024)
+    {
+        return Results.BadRequest(new { success = false, error = "The Excel file is larger than 5MB." });
+    }
+
+    List<List<string>> worksheetRows;
+    try
+    {
+        worksheetRows = ReadSimpleRowsFromXlsx(file);
+    }
+    catch (Exception)
+    {
+        return Results.BadRequest(new { success = false, error = "The Excel file could not be read. Use the downloaded template." });
+    }
+
+    var rows = new List<UserImportRow>();
+    var errors = new List<string>();
+    for (var index = 0; index < worksheetRows.Count; index++)
+    {
+        var values = worksheetRows[index];
+        if (values.All(string.IsNullOrWhiteSpace)) continue;
+        if (values.Count < 4)
+        {
+            errors.Add($"Row {index + 2}: expected Username, Email, Role, and Password.");
+            continue;
+        }
+
+        rows.Add(new UserImportRow(values[0], values[1], values[2], values[3]));
+    }
+
+    if (errors.Count > 0)
+    {
+        return Results.BadRequest(new { success = false, error = "The workbook has invalid rows.", errors });
+    }
+
+    var result = store.ImportUsers(rows);
+    return result.Success
+        ? Results.Json(new { success = true, imported = result.Imported, message = $"{result.Imported} user account(s) imported." })
+        : Results.BadRequest(new { success = false, error = "No users were imported.", errors = result.Errors });
 }
 
 static async Task<IResult> HandleDiningMenuUpload(IFormCollection form, AppDataStore store)
@@ -2690,6 +2833,7 @@ static void SetSessionCookie(HttpResponse response, string token, TimeSpan? life
 {
     response.Cookies.Append(SessionCookieName, token, new CookieOptions
     {
+        Path = "/",
         HttpOnly = true,
         SameSite = SameSiteMode.Lax,
         Secure = ShouldUseSecureCookies(request),
