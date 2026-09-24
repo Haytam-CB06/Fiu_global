@@ -19,6 +19,7 @@ public sealed class AppState
     public Dictionary<string, List<string>> RoleSectionAccess { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, Dictionary<string, List<string>>> RoleSectionParts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public int RoleAccessDefaultsVersion { get; set; }
+    public int PlatformRoleGrantSyncVersion { get; set; }
     public SmtpSettings Smtp { get; set; } = new();
     public Counters Counters { get; set; } = new();
 }

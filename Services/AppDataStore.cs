@@ -1628,6 +1628,10 @@ public sealed class AppDataStore
                 return false;
             }
 
+            // Initialize existing role allowlists before adding the platform so
+            // an unconfigured legacy role does not accidentally inherit every
+            // newly created platform.
+            EnsureDefaultRoleAccess();
             var platform = new PlatformLink
             {
                 Id = _state.Platforms.Count == 0 ? 1 : _state.Platforms.Max(item => item.Id) + 1,
@@ -1641,6 +1645,7 @@ public sealed class AppDataStore
                 CreatedAt = DateTime.UtcNow
             };
             _state.Platforms.Add(platform);
+            GrantPlatformToAssignedRoles(platform);
             AddNotificationsForRolesInternal(
                 "New platform",
                 $"{platform.Name} is now available in {platform.Section}.",
@@ -1664,6 +1669,7 @@ public sealed class AppDataStore
                 return false;
             }
 
+            EnsureDefaultRoleAccess();
             platform.Section = string.IsNullOrWhiteSpace(section) ? "Campus" : section.Trim();
             platform.Name = name.Trim();
             platform.Description = description.Trim();
@@ -1671,9 +1677,78 @@ public sealed class AppDataStore
             platform.NotificationsUrl = string.IsNullOrWhiteSpace(notificationsUrl) ? null : notificationsUrl.Trim();
             platform.ImageUrl = NormalizePlatformImageUrl(imageUrl);
             platform.VisibleToRoles = NormalizePlatformRoles(visibleToRoles);
+            GrantPlatformToAssignedRoles(platform);
             AddActivityInternal(null, "system", "system", "platform_update", platform.Name);
             Save();
             return true;
+        }
+    }
+
+    private void GrantPlatformToAssignedRoles(PlatformLink platform)
+    {
+        var assignedRoles = platform.VisibleToRoles
+            .Select(NormalizeRoleKey)
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (assignedRoles.Count == 0) return;
+
+        foreach (var role in assignedRoles)
+        {
+            if (!_state.RoleSectionParts.TryGetValue(role, out var permissions) || permissions is null)
+            {
+                permissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                _state.RoleSectionParts[role] = permissions;
+            }
+
+            if (!permissions.TryGetValue("platforms", out var rolePlatforms) || rolePlatforms is null)
+            {
+                rolePlatforms = [];
+                permissions["platforms"] = rolePlatforms;
+            }
+            if (!rolePlatforms.Contains(platform.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                rolePlatforms.Add(platform.Name);
+            }
+        }
+
+        foreach (var user in _state.Users.Where(user => assignedRoles.Contains(NormalizeRoleKey(user.Role))))
+        {
+            if (user.SectionAccessConfigured && GetEffectiveSectionsForUser(user).Contains("platforms", StringComparer.OrdinalIgnoreCase))
+            {
+                user.SectionPermissions ??= new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                if (!user.SectionPermissions.TryGetValue("platforms", out var userPlatforms) || userPlatforms is null)
+                {
+                    userPlatforms = [];
+                    user.SectionPermissions["platforms"] = userPlatforms;
+                }
+                if (!userPlatforms.Contains(platform.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    userPlatforms.Add(platform.Name);
+                }
+            }
+
+            // A saved per-user platform list is also an allowlist. Extend it
+            // for newly role-assigned platforms so existing accounts inherit
+            // the role assignment without losing their other choices.
+            var existingAccess = _state.UserPlatformAccess.FirstOrDefault(access =>
+                access.UserId == user.Id && access.Platform.Equals(platform.Name, StringComparison.OrdinalIgnoreCase));
+            if (existingAccess is not null)
+            {
+                existingAccess.IsActive = true;
+                existingAccess.UpdatedAt = DateTime.UtcNow;
+            }
+            else if (_state.UserPlatformAccess.Any(access => access.UserId == user.Id))
+            {
+                _state.UserPlatformAccess.Add(new UserPlatformAccess
+                {
+                    Id = _state.UserPlatformAccess.Count == 0 ? 1 : _state.UserPlatformAccess.Max(access => access.Id) + 1,
+                    UserId = user.Id,
+                    StudentNumber = IsStudentRole(user.Role) ? user.StudentNumber : string.Empty,
+                    Platform = platform.Name,
+                    IsActive = true,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
         }
     }
 
@@ -2886,6 +2961,19 @@ public sealed class AppDataStore
                 user.SectionAccessConfigured = false;
                 user.SectionPermissions.Clear();
             }
+        }
+
+        // Older platforms already have VisibleToRoles, but their role and
+        // per-user platform allowlists were snapshots from before the platform
+        // existed. Reconcile those saved grants once without overriding later
+        // administrator changes to Role Access.
+        if (_state.PlatformRoleGrantSyncVersion < 1)
+        {
+            foreach (var platform in _state.Platforms)
+            {
+                GrantPlatformToAssignedRoles(platform);
+            }
+            _state.PlatformRoleGrantSyncVersion = 1;
         }
 
         MigrateFacultyDirectoryFromAccountProfiles();

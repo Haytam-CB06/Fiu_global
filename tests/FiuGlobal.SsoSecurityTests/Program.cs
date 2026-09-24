@@ -104,6 +104,18 @@ var testUserIds = platformStore.GetUserRoleAccess().ToDictionary(
     row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
     row => (int)row.GetType().GetProperty("id")!.GetValue(row)!,
     StringComparer.OrdinalIgnoreCase);
+Check(platformStore.CreatePlatform("Campus", "Student Assigned Service", "https://student-service.example.test/", "Student-only service", null, ["student"]),
+    "student-assigned platform is created after role defaults are initialized");
+if (testUserIds.TryGetValue("test-student", out var defaultStudentId))
+{
+    Check(platformStore.GetPlatformsForUser(defaultStudentId).Any(platform => platform.Name == "Student Assigned Service"),
+        "new platform assigned to students is added to the student role allowlist");
+}
+if (testUserIds.TryGetValue("test-instructor", out var defaultInstructorId))
+{
+    Check(!platformStore.GetPlatformsForUser(defaultInstructorId).Any(platform => platform.Name == "Student Assigned Service"),
+        "student-assigned platform is not exposed to instructors");
+}
 if (testUserIds.TryGetValue("test-instructor", out var instructorId))
 {
     Check(platformStore.UpdateUserRoleAccess(instructorId, "instructor", ["platforms"], userAccess), "instructor per-user AIS override saved");
@@ -114,6 +126,16 @@ if (testUserIds.TryGetValue("test-student", out var studentId))
     Check(platformStore.UpdateUserRoleAccess(studentId, "student", ["platforms"], userAccess), "student per-user AIS override saved");
     Check(!platformStore.GetPlatformsForUser(studentId).Any(platform => platform.Name == "AIS"), "student override cannot bypass AIS role visibility");
 
+    Check(platformStore.CreatePlatform("Campus", "Student Platform for Existing Users", "https://student-service-2.example.test/", "Assigned after a user override", null, ["student"]),
+        "student platform assignment updates existing user access lists");
+    Check(platformStore.GetPlatformsForUser(studentId).Any(platform => platform.Name == "Student Platform for Existing Users"),
+        "existing student with a saved platform allowlist receives the newly assigned platform");
+    if (testUserIds.TryGetValue("test-instructor", out var existingInstructorId))
+    {
+        Check(!platformStore.GetPlatformsForUser(existingInstructorId).Any(platform => platform.Name == "Student Platform for Existing Users"),
+            "new student assignment remains hidden from existing instructors");
+    }
+
     var secondStudent = platformStore.CreateUser("test-student-two", "test-student-two@example.test", "temporary-test-password", "student");
     Check(secondStudent.Success, "second isolated student account created for bulk-delete test");
     var allTestUsers = platformStore.GetUserRoleAccess().ToDictionary(
@@ -122,6 +144,8 @@ if (testUserIds.TryGetValue("test-student", out var studentId))
         StringComparer.OrdinalIgnoreCase);
     if (allTestUsers.TryGetValue("test-student-two", out var secondStudentId) && testUserIds.TryGetValue("test-instructor", out var protectedInstructorId))
     {
+        Check(platformStore.GetPlatformsForUser(secondStudentId).Any(platform => platform.Name == "Student Platform for Existing Users"),
+            "new student inherits role-assigned platforms from role defaults");
         Check(platformStore.DeleteUsers([studentId, protectedInstructorId], "student") == 0, "bulk delete rejects mixed-role selections without partial deletion");
         Check(platformStore.GetUserRoleAccess().Any(row => (string)row.GetType().GetProperty("username")!.GetValue(row)! == "test-instructor"), "mixed-role rejection preserves the instructor");
         Check(platformStore.DeleteUsers([studentId, secondStudentId], "student") == 2, "bulk delete removes the selected accounts in one role");
@@ -129,6 +153,75 @@ if (testUserIds.TryGetValue("test-student", out var studentId))
             (string)row.GetType().GetProperty("username")!.GetValue(row)! is "test-student" or "test-student-two"), "bulk delete removes the selected student accounts");
     }
 }
+
+// Simulate a persisted install where a platform existed before role-grant
+// synchronization was deployed. Startup migration must backfill both the
+// role defaults and existing per-user allowlists exactly once.
+var migrationStore = new AppDataStore(null!, new LocalizationService());
+var migrationStudent = new UserAccount
+{
+    Id = 101,
+    Username = "legacy-student",
+    Email = "legacy-student@example.test",
+    Password = "temporary-test-password",
+    Role = "student",
+    SectionAccessConfigured = true,
+    AllowedSections = ["platforms"],
+    SectionPermissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["platforms"] = []
+    }
+};
+var migrationInstructor = new UserAccount
+{
+    Id = 102,
+    Username = "legacy-instructor",
+    Email = "legacy-instructor@example.test",
+    Password = "temporary-test-password",
+    Role = "instructor",
+    SectionAccessConfigured = true,
+    AllowedSections = ["platforms"],
+    SectionPermissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["platforms"] = []
+    }
+};
+var legacyPlatform = new PlatformLink
+{
+    Id = 101,
+    Name = "Platform Created Before Grant Sync",
+    Url = "https://legacy-platform.example.test/",
+    VisibleToRoles = ["student"]
+};
+var legacyState = new AppState
+{
+    Users = [migrationStudent, migrationInstructor],
+    Platforms = [legacyPlatform],
+    RoleSectionAccess = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["student"] = ["platforms"],
+        ["instructor"] = ["platforms"]
+    },
+    RoleSectionParts = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["student"] = new(StringComparer.OrdinalIgnoreCase) { ["platforms"] = [] },
+        ["instructor"] = new(StringComparer.OrdinalIgnoreCase) { ["platforms"] = [] }
+    },
+    RoleAccessDefaultsVersion = 1,
+    UserPlatformAccess =
+    [
+        new UserPlatformAccess { Id = 1, UserId = migrationStudent.Id, Platform = "Older service", IsActive = false },
+        new UserPlatformAccess { Id = 2, UserId = migrationInstructor.Id, Platform = "Older service", IsActive = false }
+    ]
+};
+typeof(AppDataStore).GetField("_state", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+    .SetValue(migrationStore, legacyState);
+typeof(AppDataStore).GetMethod("MigrateState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+    .Invoke(migrationStore, null);
+Check(migrationStore.GetPlatformsForUser(migrationStudent.Id).Any(platform => platform.Name == legacyPlatform.Name),
+    "startup migration repairs visibility for an existing student-assigned platform");
+Check(!migrationStore.GetPlatformsForUser(migrationInstructor.Id).Any(platform => platform.Name == legacyPlatform.Name),
+    "startup grant migration does not expose a student-assigned platform to instructors");
 
 if (failures.Count == 0)
 {
