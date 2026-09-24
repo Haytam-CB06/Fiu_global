@@ -683,6 +683,7 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
         "user-create" => HandleUserCreate(body, store),
         "user-update" => HandleUserUpdate(body, store),
         "user-delete" => HandleUserDelete(body, store),
+        "user-bulk-delete" => HandleUserBulkDelete(body, store),
         "user-change-password" => HandleUserPassword(body, store),
         "user-promote-to-admin" => HandlePromoteUser(body, store),
         "admin-demote-to-user" => HandleDemoteAdmin(body, store),
@@ -2199,10 +2200,40 @@ static IResult HandleUserDelete(Dictionary<string, object?> body, AppDataStore s
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
+    if (!string.Equals(body.GetString("confirmation"), "DELETE", StringComparison.Ordinal))
+    {
+        return Results.BadRequest(new { success = false, error = "Type DELETE in the confirmation field to continue." });
+    }
+
     var deleted = store.DeleteUser(body.GetInt("id"));
     return deleted
         ? Results.Json(new { success = true, message = "User deleted successfully" })
         : Results.BadRequest(new { error = "Failed to delete user" });
+}
+
+static IResult HandleUserBulkDelete(Dictionary<string, object?> body, AppDataStore store)
+{
+    if (!RequireSuperAdmin(body, store))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (!string.Equals(body.GetString("confirmation"), "DELETE", StringComparison.Ordinal))
+    {
+        return Results.BadRequest(new { success = false, error = "Type DELETE in the confirmation field to continue." });
+    }
+
+    var ids = body.GetIntList("ids");
+    var role = body.GetString("role").Trim();
+    if (ids.Count == 0 || string.IsNullOrWhiteSpace(role))
+    {
+        return Results.BadRequest(new { success = false, error = "Select accounts from one role section before deleting." });
+    }
+
+    var deleted = store.DeleteUsers(ids, role);
+    return deleted == ids.Count
+        ? Results.Json(new { success = true, deleted, message = $"Deleted {deleted} user accounts." })
+        : Results.BadRequest(new { success = false, error = "No accounts were deleted. Refresh the section and review the selected accounts." });
 }
 
 static IResult HandleUserPassword(Dictionary<string, object?> body, AppDataStore store)

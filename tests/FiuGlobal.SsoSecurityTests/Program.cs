@@ -76,6 +76,21 @@ if (testUserIds.TryGetValue("test-student", out var studentId))
 {
     Check(platformStore.UpdateUserRoleAccess(studentId, "student", ["platforms"], userAccess), "student per-user AIS override saved");
     Check(!platformStore.GetPlatformsForUser(studentId).Any(platform => platform.Name == "AIS"), "student override cannot bypass AIS role visibility");
+
+    var secondStudent = platformStore.CreateUser("test-student-two", "test-student-two@example.test", "temporary-test-password", "student");
+    Check(secondStudent.Success, "second isolated student account created for bulk-delete test");
+    var allTestUsers = platformStore.GetUserRoleAccess().ToDictionary(
+        row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
+        row => (int)row.GetType().GetProperty("id")!.GetValue(row)!,
+        StringComparer.OrdinalIgnoreCase);
+    if (allTestUsers.TryGetValue("test-student-two", out var secondStudentId) && testUserIds.TryGetValue("test-instructor", out var protectedInstructorId))
+    {
+        Check(platformStore.DeleteUsers([studentId, protectedInstructorId], "student") == 0, "bulk delete rejects mixed-role selections without partial deletion");
+        Check(platformStore.GetUserRoleAccess().Any(row => (string)row.GetType().GetProperty("username")!.GetValue(row)! == "test-instructor"), "mixed-role rejection preserves the instructor");
+        Check(platformStore.DeleteUsers([studentId, secondStudentId], "student") == 2, "bulk delete removes the selected accounts in one role");
+        Check(!platformStore.GetUserRoleAccess().Any(row =>
+            (string)row.GetType().GetProperty("username")!.GetValue(row)! is "test-student" or "test-student-two"), "bulk delete removes the selected student accounts");
+    }
 }
 
 if (failures.Count == 0)

@@ -3,6 +3,8 @@
     let editingUserId = null;
     let accountFacultyDirectory = null;
     let accountFacultyDirectoryPromise = null;
+    let pendingUserDelete = null;
+    let deleteModalReturnFocus = null;
 
     const ACCOUNT_TRANSLATIONS = {
         en: {
@@ -27,6 +29,10 @@
             'admin.account.saved': 'Account saved successfully', 'admin.account.saveError': 'Unable to save account',
             'admin.account.created': 'Account created successfully', 'admin.account.createError': 'Unable to create account',
             'admin.account.deleteConfirm': 'Delete this user account?', 'admin.account.deleted': 'User deleted successfully', 'admin.account.deleteError': 'Unable to delete user',
+            'admin.account.selectFiltered': 'Select all filtered accounts', 'admin.account.selectedCount': '{count} selected', 'admin.account.deleteSelected': 'Delete selected',
+            'admin.account.deleteTitle': 'Confirm account deletion', 'admin.account.deleteSummary': 'This will permanently delete {count} {role} account(s). This action cannot be undone.',
+            'admin.account.typeDelete': 'Type DELETE to confirm.', 'admin.account.deleteWord': 'DELETE', 'admin.account.deletePermanently': 'Delete permanently',
+            'admin.account.deleteTypeMismatch': 'Enter DELETE exactly to enable deletion.', 'admin.account.deletedCount': 'Deleted {count} account(s).',
             'admin.profile.close': 'Close profile', 'admin.profile.pictureAlt': 'Profile picture', 'admin.profile.title': 'My profile',
             'admin.profile.description': 'Manage your administrator details.', 'admin.profile.firstName': 'First name', 'admin.profile.surname': 'Surname',
             'admin.profile.picture': 'Profile picture', 'admin.profile.imageRequirements': 'JPG, PNG, WebP, or GIF, up to 5 MB',
@@ -92,6 +98,10 @@
             'admin.account.saved': 'Hesap başarıyla kaydedildi', 'admin.account.saveError': 'Hesap kaydedilemedi',
             'admin.account.created': 'Hesap başarıyla oluşturuldu', 'admin.account.createError': 'Hesap oluşturulamadı',
             'admin.account.deleteConfirm': 'Bu kullanıcı hesabı silinsin mi?', 'admin.account.deleted': 'Kullanıcı başarıyla silindi', 'admin.account.deleteError': 'Kullanıcı silinemedi',
+            'admin.account.selectFiltered': 'Filtrelenen tüm hesapları seç', 'admin.account.selectedCount': '{count} seçildi', 'admin.account.deleteSelected': 'Seçilenleri sil',
+            'admin.account.deleteTitle': 'Hesap silmeyi onayla', 'admin.account.deleteSummary': '{count} {role} hesabı kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+            'admin.account.typeDelete': 'Onaylamak için DELETE yazın.', 'admin.account.deleteWord': 'DELETE', 'admin.account.deletePermanently': 'Kalıcı olarak sil',
+            'admin.account.deleteTypeMismatch': 'Silme işlemini etkinleştirmek için tam olarak DELETE girin.', 'admin.account.deletedCount': '{count} hesap silindi.',
             'admin.profile.close': 'Profili kapat', 'admin.profile.pictureAlt': 'Profil resmi', 'admin.profile.title': 'Profilim',
             'admin.profile.description': 'Yönetici bilgilerinizi yönetin.', 'admin.profile.firstName': 'Ad', 'admin.profile.surname': 'Soyad',
             'admin.profile.picture': 'Profil resmi', 'admin.profile.imageRequirements': 'JPG, PNG, WebP veya GIF; en fazla 5 MB',
@@ -158,6 +168,10 @@
             'admin.account.saved': 'Compte enregistré avec succès', 'admin.account.saveError': 'Impossible d’enregistrer le compte',
             'admin.account.created': 'Compte créé avec succès', 'admin.account.createError': 'Impossible de créer le compte',
             'admin.account.deleteConfirm': 'Supprimer ce compte utilisateur ?', 'admin.account.deleted': 'Utilisateur supprimé avec succès', 'admin.account.deleteError': 'Impossible de supprimer l’utilisateur',
+            'admin.account.selectFiltered': 'Sélectionner tous les comptes filtrés', 'admin.account.selectedCount': '{count} sélectionné(s)', 'admin.account.deleteSelected': 'Supprimer la sélection',
+            'admin.account.deleteTitle': 'Confirmer la suppression des comptes', 'admin.account.deleteSummary': '{count} compte(s) {role} seront supprimés définitivement. Cette action est irréversible.',
+            'admin.account.typeDelete': 'Saisissez DELETE pour confirmer.', 'admin.account.deleteWord': 'DELETE', 'admin.account.deletePermanently': 'Supprimer définitivement',
+            'admin.account.deleteTypeMismatch': 'Saisissez exactement DELETE pour activer la suppression.', 'admin.account.deletedCount': '{count} compte(s) supprimé(s).',
             'admin.profile.close': 'Fermer le profil', 'admin.profile.pictureAlt': 'Photo de profil', 'admin.profile.title': 'Mon profil',
             'admin.profile.description': 'Gérez vos informations d’administrateur.', 'admin.profile.firstName': 'Prénom', 'admin.profile.surname': 'Nom de famille',
             'admin.profile.picture': 'Photo de profil', 'admin.profile.imageRequirements': 'JPG, PNG, WebP ou GIF, jusqu’à 5 Mo',
@@ -224,6 +238,10 @@
             'admin.account.saved': 'Учётная запись сохранена', 'admin.account.saveError': 'Не удалось сохранить учётную запись',
             'admin.account.created': 'Учётная запись создана', 'admin.account.createError': 'Не удалось создать учётную запись',
             'admin.account.deleteConfirm': 'Удалить эту учётную запись пользователя?', 'admin.account.deleted': 'Пользователь удалён', 'admin.account.deleteError': 'Не удалось удалить пользователя',
+            'admin.account.selectFiltered': 'Выбрать все отфильтрованные учётные записи', 'admin.account.selectedCount': 'Выбрано: {count}', 'admin.account.deleteSelected': 'Удалить выбранные',
+            'admin.account.deleteTitle': 'Подтвердите удаление учётных записей', 'admin.account.deleteSummary': 'Будут безвозвратно удалены учётные записи роли «{role}»: {count}. Отменить это действие нельзя.',
+            'admin.account.typeDelete': 'Введите DELETE для подтверждения.', 'admin.account.deleteWord': 'DELETE', 'admin.account.deletePermanently': 'Удалить безвозвратно',
+            'admin.account.deleteTypeMismatch': 'Введите DELETE без изменений, чтобы разрешить удаление.', 'admin.account.deletedCount': 'Удалено учётных записей: {count}.',
             'admin.profile.close': 'Закрыть профиль', 'admin.profile.pictureAlt': 'Фото профиля', 'admin.profile.title': 'Мой профиль',
             'admin.profile.description': 'Управляйте сведениями администратора.', 'admin.profile.firstName': 'Имя', 'admin.profile.surname': 'Фамилия',
             'admin.profile.picture': 'Фото профиля', 'admin.profile.imageRequirements': 'JPG, PNG, WebP или GIF, до 5 МБ',
@@ -290,6 +308,10 @@
             'admin.account.saved': 'تم حفظ الحساب بنجاح', 'admin.account.saveError': 'تعذر حفظ الحساب',
             'admin.account.created': 'تم إنشاء الحساب بنجاح', 'admin.account.createError': 'تعذر إنشاء الحساب',
             'admin.account.deleteConfirm': 'هل تريد حذف حساب المستخدم هذا؟', 'admin.account.deleted': 'تم حذف المستخدم بنجاح', 'admin.account.deleteError': 'تعذر حذف المستخدم',
+            'admin.account.selectFiltered': 'تحديد جميع الحسابات المصفاة', 'admin.account.selectedCount': 'تم تحديد {count}', 'admin.account.deleteSelected': 'حذف المحدد',
+            'admin.account.deleteTitle': 'تأكيد حذف الحسابات', 'admin.account.deleteSummary': 'سيتم حذف {count} من حسابات دور {role} نهائيًا. لا يمكن التراجع عن هذا الإجراء.',
+            'admin.account.typeDelete': 'اكتب DELETE للتأكيد.', 'admin.account.deleteWord': 'DELETE', 'admin.account.deletePermanently': 'حذف نهائي',
+            'admin.account.deleteTypeMismatch': 'أدخل DELETE كما هي تمامًا لتفعيل الحذف.', 'admin.account.deletedCount': 'تم حذف {count} حسابات.',
             'admin.profile.close': 'إغلاق الملف الشخصي', 'admin.profile.pictureAlt': 'صورة الملف الشخصي', 'admin.profile.title': 'ملفي الشخصي',
             'admin.profile.description': 'إدارة تفاصيل المسؤول الخاصة بك.', 'admin.profile.firstName': 'الاسم الأول', 'admin.profile.surname': 'اسم العائلة',
             'admin.profile.picture': 'صورة الملف الشخصي', 'admin.profile.imageRequirements': 'JPG أو PNG أو WebP أو GIF، حتى 5 ميغابايت',
@@ -396,6 +418,7 @@
         injectCreateUserSection(panel);
         injectRoleAccessSection(panel);
         injectUserModal(panel);
+        setupBulkUserDeletion(panel);
         patchUserRenderer(panel);
         patchHolidayRenderer(panel);
         bindUserImport(panel);
@@ -834,21 +857,169 @@
     }
 
     function patchUserRenderer(panel) {
+        const host = document.getElementById('users-table-container');
+        if (host && host.dataset.bulkDeleteBound !== 'true') {
+            host.dataset.bulkDeleteBound = 'true';
+            host.addEventListener('change', event => {
+                const selectAll = event.target.closest('[data-select-filtered-role]');
+                const rowSelect = event.target.closest('[data-user-select]');
+                const checkbox = selectAll || rowSelect;
+                if (!checkbox) return;
+                const role = selectAll ? selectAll.dataset.selectFilteredRole : checkbox.closest('[data-role-grid]')?.dataset.roleGrid;
+                const state = panel.userGridState?.[role];
+                if (!state) return;
+                state.selectedIds ||= new Set();
+                if (selectAll) {
+                    const filteredRows = filteredRoleUsers(panel, role);
+                    for (const user of filteredRows) {
+                        const id = String(user.id);
+                        if (selectAll.checked) state.selectedIds.add(id);
+                        else state.selectedIds.delete(id);
+                    }
+                } else {
+                    const id = String(checkbox.dataset.userSelect);
+                    if (checkbox.checked) state.selectedIds.add(id);
+                    else state.selectedIds.delete(id);
+                }
+                renderRoleGrid(panel, role);
+            });
+
+            host.addEventListener('click', event => {
+                const button = event.target.closest('[data-bulk-delete-role]');
+                if (!button || button.disabled) return;
+                const role = button.dataset.bulkDeleteRole;
+                const ids = Array.from(panel.userGridState?.[role]?.selectedIds || [], id => Number(id)).filter(Number.isInteger);
+                if (ids.length) openUserDeleteConfirmation(panel, { ids, role, mode: 'bulk' });
+            });
+        }
+
         panel.renderUsers = function (users) {
             this.users = users || [];
             const host = document.getElementById('users-table-container');
             if (!host) return;
             const roles = [...new Set(['student', 'instructor', ...this.users.map(item => String(item.role || 'other').toLowerCase())])];
             this.userGridState = this.userGridState || {};
-            host.innerHTML = roles.map(role => `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(displayRole(role))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by number, name, email…"></label></div>${roleImportPanelMarkup(role)}<div class="table-responsive"><table class="table"><thead><tr><th>${escapeHtml(displayRole(role))} number</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`).join('');
+            host.innerHTML = roles.map(role => `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(displayRole(role))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by number, name, email…"></label></div><div class="role-bulk-delete-toolbar"><span data-selected-count>${t('admin.account.selectedCount', { count: 0 })}</span><button type="button" class="btn btn-danger btn-sm" data-bulk-delete-role="${escapeHtml(role)}" disabled><i class="fas fa-trash-alt" aria-hidden="true"></i> ${t('admin.account.deleteSelected')}</button></div>${roleImportPanelMarkup(role)}<div class="table-responsive"><table class="table"><thead><tr><th class="user-select-column"><input type="checkbox" data-select-filtered-role="${escapeHtml(role)}" aria-label="${escapeHtml(t('admin.account.selectFiltered'))}"></th><th>${escapeHtml(displayRole(role))} number</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`).join('');
             bindUserImport(this);
             roles.forEach(role => {
-                this.userGridState[role] = this.userGridState[role] || { page: 1, filter: '' };
+                this.userGridState[role] = this.userGridState[role] || { page: 1, filter: '', selectedIds: new Set() };
+                this.userGridState[role].selectedIds = this.userGridState[role].selectedIds instanceof Set ? this.userGridState[role].selectedIds : new Set(this.userGridState[role].selectedIds || []);
                 const input = host.querySelector(`[data-role-filter="${CSS.escape(role)}"]`);
                 input?.addEventListener('input', event => { this.userGridState[role].filter = event.target.value; this.userGridState[role].page = 1; renderRoleGrid(this, role); });
                 renderRoleGrid(this, role);
             });
         };
+    }
+
+    function setupBulkUserDeletion(panel) {
+        if (document.getElementById('user-delete-confirmation')) return;
+        const modal = document.createElement('div');
+        modal.id = 'user-delete-confirmation';
+        modal.className = 'bulk-user-delete-backdrop';
+        modal.hidden = true;
+        modal.innerHTML = `<section class="bulk-user-delete-card" role="alertdialog" aria-modal="true" aria-labelledby="user-delete-title" aria-describedby="user-delete-summary"><div class="bulk-user-delete-icon" aria-hidden="true"><i class="fas fa-triangle-exclamation"></i></div><h2 id="user-delete-title"></h2><p id="user-delete-summary"></p><label for="user-delete-word"></label><input id="user-delete-word" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="user-delete-instruction user-delete-feedback"><small id="user-delete-instruction"></small><p id="user-delete-feedback" data-delete-feedback class="bulk-user-delete-feedback" aria-live="polite"></p><div class="bulk-user-delete-actions"><button type="button" class="btn btn-secondary" data-delete-cancel></button><button type="button" class="btn btn-danger" data-delete-confirm disabled></button></div></section>`;
+        document.body.appendChild(modal);
+
+        const input = modal.querySelector('#user-delete-word');
+        const confirmButton = modal.querySelector('[data-delete-confirm]');
+        const feedback = modal.querySelector('[data-delete-feedback]');
+        modal.querySelector('[data-delete-cancel]').textContent = t('admin.action.cancel');
+        confirmButton.textContent = t('admin.account.deletePermanently');
+        modal.querySelector('label[for="user-delete-word"]').textContent = t('admin.account.deleteWord');
+        modal.querySelector('#user-delete-instruction').textContent = t('admin.account.typeDelete');
+
+        input.addEventListener('input', () => {
+            const matches = input.value === 'DELETE';
+            confirmButton.disabled = !matches;
+            input.setAttribute('aria-invalid', input.value.length > 0 && !matches ? 'true' : 'false');
+            feedback.textContent = input.value.length > 0 && !matches ? t('admin.account.deleteTypeMismatch') : '';
+            feedback.classList.toggle('is-error', input.value.length > 0 && !matches);
+        });
+
+        modal.addEventListener('click', event => {
+            if (event.target === modal || event.target.closest('[data-delete-cancel]')) closeUserDeleteConfirmation();
+        });
+        modal.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeUserDeleteConfirmation();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = [...modal.querySelectorAll('input:not(:disabled), button:not(:disabled)')];
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        });
+        confirmButton.addEventListener('click', async () => {
+            if (!pendingUserDelete || input.value !== 'DELETE') return;
+            const request = pendingUserDelete;
+            const bulk = request.mode === 'bulk';
+            const payload = {
+                action: bulk ? 'user-bulk-delete' : 'user-delete',
+                current_admin_id: panel.currentAdmin.id,
+                confirmation: input.value,
+                ...(bulk ? { ids: request.ids, role: request.role } : { id: request.ids[0] })
+            };
+            confirmButton.disabled = true;
+            modal.querySelector('[data-delete-cancel]').disabled = true;
+            input.disabled = true;
+            request.busy = true;
+            feedback.textContent = '';
+            feedback.classList.remove('is-error');
+            try {
+                const result = await postJson(payload);
+                if (!result?.success) throw new Error(result?.error || t('admin.account.deleteError'));
+                if (bulk) panel.userGridState?.[request.role]?.selectedIds?.clear();
+                const deletedCount = Number(result.deleted || request.ids.length);
+                request.busy = false;
+                closeUserDeleteConfirmation();
+                panel.showNotification(bulk ? t('admin.account.deletedCount', { count: deletedCount }) : t('admin.account.deleted'), 'success');
+                panel.loadUsers();
+                panel.loadDashboardStats();
+            } catch (error) {
+                request.busy = false;
+                feedback.textContent = error.message || t('admin.account.deleteError');
+                feedback.classList.add('is-error');
+                confirmButton.disabled = input.value !== 'DELETE';
+                modal.querySelector('[data-delete-cancel]').disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        });
+    }
+
+    function openUserDeleteConfirmation(panel, request) {
+        const modal = document.getElementById('user-delete-confirmation');
+        if (!modal || !Array.isArray(request.ids) || request.ids.length === 0) return;
+        pendingUserDelete = { ...request, ids: [...new Set(request.ids.map(Number).filter(Number.isInteger))] };
+        if (!pendingUserDelete.ids.length) return;
+        deleteModalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const role = displayRole(request.role);
+        modal.querySelector('#user-delete-title').textContent = t('admin.account.deleteTitle');
+        modal.querySelector('#user-delete-summary').textContent = t('admin.account.deleteSummary', { count: pendingUserDelete.ids.length, role });
+        const input = modal.querySelector('#user-delete-word');
+        input.disabled = false;
+        input.value = '';
+        input.setAttribute('aria-invalid', 'false');
+        modal.querySelector('#user-delete-feedback').textContent = '';
+        modal.querySelector('#user-delete-feedback').classList.remove('is-error');
+        modal.querySelector('[data-delete-confirm]').disabled = true;
+        modal.querySelector('[data-delete-cancel]').disabled = false;
+        modal.hidden = false;
+        document.body.classList.add('user-delete-confirmation-open');
+        input.focus();
+    }
+
+    function closeUserDeleteConfirmation() {
+        const modal = document.getElementById('user-delete-confirmation');
+        if (!modal || pendingUserDelete?.busy) return;
+        modal.hidden = true;
+        document.body.classList.remove('user-delete-confirmation-open');
+        pendingUserDelete = null;
+        deleteModalReturnFocus?.focus?.();
+        deleteModalReturnFocus = null;
     }
 
     function roleImportPanelMarkup(role) {
@@ -873,17 +1044,38 @@
             </section>`;
     }
 
-    function renderRoleGrid(panel, role) {
+    function filteredRoleUsers(panel, role) {
         const state = panel.userGridState[role];
         const filter = String(state.filter || '').toLowerCase().trim();
-        const rows = panel.users.filter(user => String(user.role || 'other').toLowerCase() === role && (!filter || [user.student_number, user.first_name, user.last_name, user.username, user.email, user.id].some(value => String(value || '').toLowerCase().includes(filter))));
+        return panel.users.filter(user => String(user.role || 'other').toLowerCase() === role && (!filter || [user.student_number, user.first_name, user.last_name, user.username, user.email, user.id].some(value => String(value || '').toLowerCase().includes(filter))));
+    }
+
+    function renderRoleGrid(panel, role) {
+        const state = panel.userGridState[role];
+        const roleUsers = panel.users.filter(user => String(user.role || 'other').toLowerCase() === role);
+        const availableIds = new Set(roleUsers.map(user => String(user.id)));
+        for (const id of state.selectedIds) if (!availableIds.has(String(id))) state.selectedIds.delete(id);
+        const rows = filteredRoleUsers(panel, role);
         const pageSize = 8;
         const pages = Math.max(1, Math.ceil(rows.length / pageSize));
         state.page = Math.min(Math.max(1, state.page), pages);
         const pageRows = rows.slice((state.page - 1) * pageSize, state.page * pageSize);
+        const grid = document.querySelector(`[data-role-grid="${CSS.escape(role)}"]`);
         const body = document.getElementById(`role-body-${role}`);
-        if (body) body.innerHTML = pageRows.length ? pageRows.map(user => `<tr><td>${escapeHtml(user.student_number || '—')}</td><td><strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong><small class="muted-block">${escapeHtml(user.username)}</small></td><td>${escapeHtml(user.email)}</td><td><span class="status-badge status-active">${escapeHtml(user.role)}</span></td><td>${formatDate(user.created_at)}</td><td class="table-actions"><button class="btn btn-secondary btn-sm" onclick="accountManagement.editUser(${user.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="accountManagement.deleteUser(${user.id})">Delete</button></td></tr>`).join('') : `<tr><td colspan="6" class="empty-state">No ${escapeHtml(role)} accounts match this filter.</td></tr>`;
+        if (body) body.innerHTML = pageRows.length ? pageRows.map(user => `<tr><td class="user-select-cell"><input type="checkbox" data-user-select="${escapeHtml(user.id)}" aria-label="Select ${escapeHtml(user.username || user.email)}" ${state.selectedIds.has(String(user.id)) ? 'checked' : ''}></td><td>${escapeHtml(user.student_number || '—')}</td><td><strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong><small class="muted-block">${escapeHtml(user.username)}</small></td><td>${escapeHtml(user.email)}</td><td><span class="status-badge status-active">${escapeHtml(user.role)}</span></td><td>${formatDate(user.created_at)}</td><td class="table-actions"><button class="btn btn-secondary btn-sm" onclick="accountManagement.editUser(${user.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="accountManagement.deleteUser(${user.id})">Delete</button></td></tr>`).join('') : `<tr><td colspan="7" class="empty-state">No ${escapeHtml(role)} accounts match this filter.</td></tr>`;
         const count = document.getElementById(`role-count-${role}`); if (count) count.textContent = `${rows.length} account${rows.length === 1 ? '' : 's'}`;
+        const selectedCount = state.selectedIds.size;
+        const selectedLabel = grid?.querySelector('[data-selected-count]');
+        if (selectedLabel) selectedLabel.textContent = t('admin.account.selectedCount', { count: selectedCount });
+        const deleteButton = grid?.querySelector('[data-bulk-delete-role]');
+        if (deleteButton) deleteButton.disabled = selectedCount === 0;
+        const selectFiltered = grid?.querySelector('[data-select-filtered-role]');
+        const selectedFilteredCount = rows.reduce((total, user) => total + Number(state.selectedIds.has(String(user.id))), 0);
+        if (selectFiltered) {
+            selectFiltered.disabled = rows.length === 0;
+            selectFiltered.checked = rows.length > 0 && selectedFilteredCount === rows.length;
+            selectFiltered.indeterminate = selectedFilteredCount > 0 && selectedFilteredCount < rows.length;
+        }
         const pagination = document.getElementById(`role-pages-${role}`); if (!pagination) return;
         pagination.innerHTML = `<button type="button" class="pagination-button" ${state.page === 1 ? 'disabled' : ''} data-page-action="prev" aria-label="Previous ${escapeHtml(role)} accounts page"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><span class="pagination-summary">Page ${state.page} of ${pages}</span><button type="button" class="pagination-button" ${state.page === pages ? 'disabled' : ''} data-page-action="next" aria-label="Next ${escapeHtml(role)} accounts page"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
         pagination.querySelector('[data-page-action="prev"]')?.addEventListener('click', () => { state.page--; renderRoleGrid(panel, role); });
@@ -1376,18 +1568,11 @@
             const user = panel && panel.users ? panel.users.find(item => item.id === id) : null;
             if (user) void showUserModal(panel, user);
         },
-        async deleteUser(id) {
+        deleteUser(id) {
             const panel = window.adminPanel;
-            if (!panel || !confirm('Delete this user account?')) return;
-
-            const result = await postJson({ action: 'user-delete', current_admin_id: panel.currentAdmin.id, id });
-            if (result.success) {
-                panel.showNotification('User deleted successfully', 'success');
-                panel.loadUsers();
-                panel.loadDashboardStats();
-            } else {
-                panel.showNotification(result.error || 'Unable to delete user', 'error');
-            }
+            const user = panel?.users?.find(item => Number(item.id) === Number(id));
+            if (!panel || !user) return;
+            openUserDeleteConfirmation(panel, { ids: [Number(id)], role: String(user.role || 'other').toLowerCase(), mode: 'single' });
         }
     };
 })();

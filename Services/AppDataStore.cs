@@ -1406,18 +1406,48 @@ public sealed class AppDataStore
 
     public bool DeleteUser(int id)
     {
+        return DeleteUsers([id]) == 1;
+    }
+
+    public int DeleteUsers(IEnumerable<int>? ids, string? role = null)
+    {
+        var requestedIds = (ids ?? [])
+            .Where(id => id > 0)
+            .Distinct()
+            .ToHashSet();
+        if (requestedIds.Count == 0) return 0;
+
         lock (_gate)
         {
-            var user = _state.Users.FirstOrDefault(item => item.Id == id);
-            if (user is null)
+            var users = _state.Users.Where(item => requestedIds.Contains(item.Id)).ToList();
+            if (users.Count != requestedIds.Count) return 0;
+            var normalizedRole = string.IsNullOrWhiteSpace(role) ? null : NormalizeUserRole(role);
+            if (normalizedRole is not null && users.Any(user => !user.Role.Equals(normalizedRole, StringComparison.OrdinalIgnoreCase))) return 0;
+
+            var deletedUserIds = users.Select(user => user.Id).ToHashSet();
+            foreach (var user in users)
             {
-                return false;
+                _state.Users.Remove(user);
+                AddActivityInternal(user.Id, user.Username, user.Role, "user_delete", "User account deleted");
+            }
+            _state.UserPlatformAccess.RemoveAll(item => deletedUserIds.Contains(item.UserId));
+
+            var sessions = _sessions.Values.Where(session => session.UserId.HasValue && deletedUserIds.Contains(session.UserId.Value)).ToList();
+            foreach (var session in sessions)
+            {
+                _sessions.Remove(session.Token);
+                try
+                {
+                    _database.DeleteSession(session.Token);
+                }
+                catch (Exception ex)
+                {
+                    _database.MarkUnavailable(ex);
+                }
             }
 
-            _state.Users.Remove(user);
-            AddActivityInternal(user.Id, user.Username, user.Role, "user_delete", "User account deleted");
             Save();
-            return true;
+            return users.Count;
         }
     }
 
@@ -4163,6 +4193,21 @@ internal static class PayloadExtensions
         }
 
         return value.ToString()?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+    }
+
+    public static List<int> GetIntList(this Dictionary<string, object?> body, string key)
+    {
+        if (!body.TryGetValue(key, out var value) || value is not JsonElement element || element.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return element.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out _))
+            .Select(item => item.GetInt32())
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
     }
 
     public static T? ToPayload<T>(this Dictionary<string, object?> body)

@@ -1683,6 +1683,10 @@ body.admin-portal .chart-empty i {
 .role-grid-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .role-grid-header h3 { margin:0 0 4px; }
 .role-grid-count { color: #65748b; font-size: 13px; }
+.role-bulk-delete-toolbar { display:flex; align-items:center; justify-content:flex-end; gap:12px; min-height:42px; margin:-2px 0 14px; color:#65748b; font-size:13px; font-weight:700; }
+.role-bulk-delete-toolbar .btn:disabled { cursor:not-allowed; opacity:.48; }
+.user-select-column, .user-select-cell { width:42px; text-align:center !important; }
+.user-select-column input, .user-select-cell input { width:18px; height:18px; accent-color:#173c70; cursor:pointer; }
 .smart-filter { display:flex; align-items:center; gap:8px; min-width:280px; border:1px solid #d8e0eb; border-radius:10px; padding:8px 12px; background:#fff; }
 .smart-filter input { border:0; outline:0; width:100%; background:transparent; }
 .table-responsive { overflow-x:auto; }
@@ -1704,7 +1708,26 @@ body.admin-portal .chart-empty i {
 .role-access-feedback { min-height:22px; margin:8px 0; font-weight:600; }
 .role-access-feedback.success { color:#24724a; }
 .role-access-feedback.error { color:#b33a3a; }
+.bulk-user-delete-backdrop { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:20px; background:rgba(13,25,43,.62); backdrop-filter:blur(5px); }
+.bulk-user-delete-backdrop[hidden] { display:none; }
+.bulk-user-delete-card { width:min(480px,100%); box-sizing:border-box; padding:28px; border:1px solid #d8e0eb; border-radius:20px; background:#fff; color:#19283e; box-shadow:0 24px 80px rgba(4,19,41,.3); }
+.bulk-user-delete-icon { display:grid; place-items:center; width:48px; height:48px; margin-bottom:14px; border-radius:15px; background:#fff0ef; color:#c43335; font-size:21px; }
+.bulk-user-delete-card h2 { margin:0 0 8px; font-size:1.35rem; }
+.bulk-user-delete-card > p { line-height:1.55; }
+.bulk-user-delete-card label { display:block; margin:18px 0 7px; font-weight:800; }
+.bulk-user-delete-card input { width:100%; min-height:46px; box-sizing:border-box; padding:10px 12px; border:1px solid #bdcadd; border-radius:10px; background:#fff; color:#19283e; font:inherit; }
+.bulk-user-delete-card input:focus { outline:3px solid rgba(32,101,190,.2); border-color:#2065be; }
+.bulk-user-delete-card input[aria-invalid="true"] { border-color:#c43335; }
+.bulk-user-delete-card small { display:block; margin-top:7px; color:#65748b; }
+.bulk-user-delete-feedback { min-height:20px; margin:8px 0 0; color:#65748b; font-size:.9rem; }
+.bulk-user-delete-feedback.is-error { color:#b4232b; }
+.bulk-user-delete-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:10px; margin-top:18px; }
+body.user-delete-confirmation-open { overflow:hidden; }
+body.admin-portal.dark-admin .bulk-user-delete-card { border-color:#35475e; background:#182536; color:#eef4ff; }
+body.admin-portal.dark-admin .bulk-user-delete-card input { border-color:#40536c; background:#101b2a; color:#eef4ff; }
+body.admin-portal.dark-admin .bulk-user-delete-card small { color:#bdc9d9; }
 @media (max-width: 800px) { .role-grid-header, .role-access-user-head { align-items:stretch; flex-direction:column; } .smart-filter { min-width:0; width:100%; box-sizing:border-box; } .role-access-layout { grid-template-columns:1fr; } }
+@media (max-width: 520px) { .role-user-grid { padding:14px; } .role-bulk-delete-toolbar { justify-content:space-between; flex-wrap:wrap; } .bulk-user-delete-card { padding:22px; } }
 
 /* Holiday import editor, paging and granular role access */
 .holiday-grid-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
