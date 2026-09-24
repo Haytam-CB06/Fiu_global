@@ -464,7 +464,7 @@ public sealed class AppDataStore
                         username = user.Username,
                         email = user.Email,
                         role = user.Role,
-                        student_number = user.StudentNumber,
+                        student_number = IsStudentRole(user.Role) ? user.StudentNumber : string.Empty,
                         first_name = user.FirstName,
                         last_name = user.LastName,
                         profile_picture = user.ProfilePicture,
@@ -499,7 +499,7 @@ public sealed class AppDataStore
                     email = admin.Email,
                     role = admin.Role,
                     is_active = admin.IsActive,
-                    student_number = admin.StudentNumber,
+                    student_number = string.Empty,
                     first_name = admin.FirstName,
                     last_name = admin.LastName,
                     profile_picture = admin.ProfilePicture,
@@ -616,7 +616,6 @@ public sealed class AppDataStore
             {
                 return new OperationResult(false, affiliationError);
             }
-            admin.StudentNumber = body.GetString("student_number").Trim();
             admin.FirstName = body.GetString("first_name").Trim();
             admin.LastName = body.GetString("last_name").Trim();
             if (body.ContainsKey("profile_picture")) admin.ProfilePicture = body.GetString("profile_picture").Trim();
@@ -663,13 +662,15 @@ public sealed class AppDataStore
                 }
             }
 
+            var userId = _state.Counters.NextUserId++;
             _state.Users.Add(new UserAccount
             {
-                Id = _state.Counters.NextUserId++,
+                Id = userId,
                 Username = username,
                 Email = email,
                 Password = PasswordSecurity.Hash(password),
                 Role = role,
+                StudentNumber = IsStudentRole(role) ? FormatStudentNumber(userId) : string.Empty,
                 FacultyId = facultyId,
                 DepartmentId = departmentId,
                 Faculty = facultyName,
@@ -827,13 +828,15 @@ public sealed class AppDataStore
 
             foreach (var row in normalizedRows)
             {
+                var userId = _state.Counters.NextUserId++;
                 _state.Users.Add(new UserAccount
                 {
-                    Id = _state.Counters.NextUserId++,
+                    Id = userId,
                     Username = row.Username,
                     Email = row.Email,
                     Password = PasswordSecurity.Hash(row.Password),
                     Role = row.Role,
+                    StudentNumber = IsStudentRole(row.Role) ? FormatStudentNumber(userId) : string.Empty,
                     FacultyId = row.FacultyId,
                     DepartmentId = row.DepartmentId,
                     Faculty = row.Faculty,
@@ -877,6 +880,7 @@ public sealed class AppDataStore
                 SectionPermissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
                 CreatedAt = DateTime.UtcNow
             };
+            user.StudentNumber = FormatStudentNumber(user.Id);
 
             _state.Users.Add(user);
             AddActivityInternal(user.Id, user.Username, user.Role, "google_user_create", "Student account created from Google sign-in");
@@ -940,6 +944,9 @@ public sealed class AppDataStore
             user.Username = username;
             user.Email = email;
             user.Role = role;
+            user.StudentNumber = IsStudentRole(role)
+                ? (string.IsNullOrWhiteSpace(user.StudentNumber) ? FormatStudentNumber(user.Id) : user.StudentNumber)
+                : string.Empty;
             AddActivityInternal(user.Id, user.Username, user.Role, "user_update", "User account updated");
             Save();
             return new OperationResult(true);
@@ -1016,7 +1023,11 @@ public sealed class AppDataStore
                     return new OperationResult(false, affiliationError);
                 }
             }
-            user.StudentNumber = body.GetString("student_number").Trim();
+            if (IsStudentRole(user.Role))
+            {
+                user.StudentNumber = body.GetString("student_number").Trim();
+                if (string.IsNullOrWhiteSpace(user.StudentNumber)) user.StudentNumber = FormatStudentNumber(user.Id);
+            }
             user.FirstName = body.GetString("first_name").Trim();
             user.LastName = body.GetString("last_name").Trim();
             user.Email = email;
@@ -1245,7 +1256,7 @@ public sealed class AppDataStore
                 username = user.Username,
                 email = user.Email,
                 role = user.Role,
-                student_number = user.StudentNumber,
+                student_number = IsStudentRole(user.Role) ? user.StudentNumber : string.Empty,
                 first_name = user.FirstName,
                 last_name = user.LastName,
                 allowed_sections = GetEffectiveSectionsForUser(user),
@@ -1355,6 +1366,9 @@ public sealed class AppDataStore
     private void ApplyUserRoleAccess(UserAccount user, string role, IEnumerable<string>? sections, IDictionary<string, bool>? platforms, IDictionary<string, List<string>>? sectionPermissions)
     {
         user.Role = string.IsNullOrWhiteSpace(role) ? user.Role : NormalizeUserRole(role);
+        user.StudentNumber = IsStudentRole(user.Role)
+            ? (string.IsNullOrWhiteSpace(user.StudentNumber) ? FormatStudentNumber(user.Id) : user.StudentNumber)
+            : string.Empty;
         user.AllowedSections = NormalizeSectionList(sections);
         user.SectionAccessConfigured = true;
         user.SectionPermissions = NormalizeSectionPermissions(sectionPermissions)
@@ -2835,7 +2849,6 @@ public sealed class AppDataStore
             {
                 admin.Email = $"{admin.Username}@final.edu.tr";
             }
-            if (string.IsNullOrWhiteSpace(admin.StudentNumber)) admin.StudentNumber = $"ADM-{admin.Id:000000}";
             if (string.IsNullOrWhiteSpace(admin.FirstName)) admin.FirstName = admin.Username;
             if (string.IsNullOrWhiteSpace(admin.ProfilePicture)) admin.ProfilePicture = "/img/fiu9-mark2.png";
             if (admin.AllowedSections is null) admin.AllowedSections = [];
@@ -2852,7 +2865,7 @@ public sealed class AppDataStore
             {
                 user.Email = $"{user.Username}@final.edu.tr";
             }
-            if (string.IsNullOrWhiteSpace(user.StudentNumber)) user.StudentNumber = $"STU-{user.Id:000000}";
+            if (IsStudentRole(user.Role) && string.IsNullOrWhiteSpace(user.StudentNumber)) user.StudentNumber = FormatStudentNumber(user.Id);
             if (string.IsNullOrWhiteSpace(user.FirstName)) user.FirstName = user.Username;
             if (string.IsNullOrWhiteSpace(user.LastName)) user.LastName = string.Empty;
             if (string.IsNullOrWhiteSpace(user.ProfilePicture)) user.ProfilePicture = "/img/fiu9-mark2.png";
@@ -3598,6 +3611,11 @@ public sealed class AppDataStore
     private static string NormalizeUserRole(string role) =>
         string.IsNullOrWhiteSpace(role) ? "student" : NormalizeRoleKey(role);
 
+    private static bool IsStudentRole(string? role) =>
+        string.Equals(NormalizeRoleKey(role ?? string.Empty), "student", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatStudentNumber(int userId) => $"STU-{userId:000000}";
+
     private static string NormalizeRoleKey(string role)
     {
         var normalized = string.Join('-', role.Trim().ToLowerInvariant().Split([' ', '_'], StringSplitOptions.RemoveEmptyEntries));
@@ -4027,7 +4045,7 @@ public sealed class AppDataStore
         username = user.Username,
         email = user.Email,
         role = user.Role,
-        student_number = user.StudentNumber,
+        student_number = IsStudentRole(user.Role) ? user.StudentNumber : string.Empty,
         first_name = user.FirstName,
         last_name = user.LastName,
         profile_picture = user.ProfilePicture,
@@ -4044,7 +4062,7 @@ public sealed class AppDataStore
         username = admin.Username,
         email = admin.Email,
         role = admin.Role,
-        student_number = admin.StudentNumber,
+        student_number = string.Empty,
         first_name = admin.FirstName,
         last_name = admin.LastName,
         profile_picture = admin.ProfilePicture,

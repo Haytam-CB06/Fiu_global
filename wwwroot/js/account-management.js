@@ -504,7 +504,6 @@
                         <div><h2 id="admin-profile-title" data-i18n="admin.profile.title">${escapeHtml(t('admin.profile.title'))}</h2><p data-i18n="admin.profile.description">${escapeHtml(t('admin.profile.description'))}</p></div>
                     </div>
                     <form id="admin-profile-form" class="profile-form">
-                        <label><span data-i18n="admin.common.studentNumber">${escapeHtml(t('admin.common.studentNumber'))}</span><input name="student_number" id="admin-profile-student_number" autocomplete="off"></label>
                         <label><span data-i18n="admin.profile.firstName">${escapeHtml(t('admin.profile.firstName'))}</span><input name="first_name" id="admin-profile-first_name" autocomplete="given-name"></label>
                         <label><span data-i18n="admin.profile.surname">${escapeHtml(t('admin.profile.surname'))}</span><input name="last_name" id="admin-profile-last_name" autocomplete="family-name"></label>
                         <label class="profile-upload-field"><span data-i18n="admin.profile.picture">${escapeHtml(t('admin.profile.picture'))}</span><input name="file" id="admin-profile-picture-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><small data-i18n="admin.profile.imageRequirements">${escapeHtml(t('admin.profile.imageRequirements'))}</small></label>
@@ -567,7 +566,7 @@
                 if (!directoryResponse.ok || !directory.success) throw new Error(directory.error || 'Unable to load the faculty directory.');
                 const p = data.profile || {};
                 facultyDirectory = Array.isArray(directory.faculties) ? directory.faculties : [];
-                ['student_number', 'first_name', 'last_name'].forEach(key => {
+                ['first_name', 'last_name'].forEach(key => {
                     const input = document.getElementById(`admin-profile-${key}`);
                     if (input) input.value = p[key] || '';
                 });
@@ -899,7 +898,12 @@
             if (!host) return;
             const roles = [...new Set(['student', 'instructor', ...this.users.map(item => String(item.role || 'other').toLowerCase())])];
             this.userGridState = this.userGridState || {};
-            host.innerHTML = roles.map(role => `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(displayRole(role))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by number, name, email…"></label></div><div class="role-bulk-delete-toolbar"><span data-selected-count>${t('admin.account.selectedCount', { count: 0 })}</span><button type="button" class="btn btn-danger btn-sm" data-bulk-delete-role="${escapeHtml(role)}" disabled><i class="fas fa-trash-alt" aria-hidden="true"></i> ${t('admin.account.deleteSelected')}</button></div>${roleImportPanelMarkup(role)}<div class="table-responsive"><table class="table"><thead><tr><th class="user-select-column"><input type="checkbox" data-select-filtered-role="${escapeHtml(role)}" aria-label="${escapeHtml(t('admin.account.selectFiltered'))}"></th><th>${escapeHtml(displayRole(role))} number</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`).join('');
+            host.innerHTML = roles.map(role => {
+                const hasStudentNumber = role === 'student';
+                const numberHeader = hasStudentNumber ? '<th>Student number</th>' : '';
+                const filterHint = hasStudentNumber ? 'number, name, email' : 'name, email';
+                return `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(displayRole(role))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by ${filterHint}…"></label></div><div class="role-bulk-delete-toolbar"><span data-selected-count>${t('admin.account.selectedCount', { count: 0 })}</span><button type="button" class="btn btn-danger btn-sm" data-bulk-delete-role="${escapeHtml(role)}" disabled><i class="fas fa-trash-alt" aria-hidden="true"></i> ${t('admin.account.deleteSelected')}</button></div>${roleImportPanelMarkup(role)}<div class="table-responsive"><table class="table"><thead><tr><th class="user-select-column"><input type="checkbox" data-select-filtered-role="${escapeHtml(role)}" aria-label="${escapeHtml(t('admin.account.selectFiltered'))}"></th>${numberHeader}<th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`;
+            }).join('');
             bindUserImport(this);
             roles.forEach(role => {
                 this.userGridState[role] = this.userGridState[role] || { page: 1, filter: '', selectedIds: new Set() };
@@ -1047,7 +1051,7 @@
     function filteredRoleUsers(panel, role) {
         const state = panel.userGridState[role];
         const filter = String(state.filter || '').toLowerCase().trim();
-        return panel.users.filter(user => String(user.role || 'other').toLowerCase() === role && (!filter || [user.student_number, user.first_name, user.last_name, user.username, user.email, user.id].some(value => String(value || '').toLowerCase().includes(filter))));
+        return panel.users.filter(user => String(user.role || 'other').toLowerCase() === role && (!filter || [role === 'student' ? user.student_number : '', user.first_name, user.last_name, user.username, user.email].some(value => String(value || '').toLowerCase().includes(filter))));
     }
 
     function renderRoleGrid(panel, role) {
@@ -1062,7 +1066,9 @@
         const pageRows = rows.slice((state.page - 1) * pageSize, state.page * pageSize);
         const grid = document.querySelector(`[data-role-grid="${CSS.escape(role)}"]`);
         const body = document.getElementById(`role-body-${role}`);
-        if (body) body.innerHTML = pageRows.length ? pageRows.map(user => `<tr><td class="user-select-cell"><input type="checkbox" data-user-select="${escapeHtml(user.id)}" aria-label="Select ${escapeHtml(user.username || user.email)}" ${state.selectedIds.has(String(user.id)) ? 'checked' : ''}></td><td>${escapeHtml(user.student_number || '—')}</td><td><strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong><small class="muted-block">${escapeHtml(user.username)}</small></td><td>${escapeHtml(user.email)}</td><td><span class="status-badge status-active">${escapeHtml(user.role)}</span></td><td>${formatDate(user.created_at)}</td><td class="table-actions"><button class="btn btn-secondary btn-sm" onclick="accountManagement.editUser(${user.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="accountManagement.deleteUser(${user.id})">Delete</button></td></tr>`).join('') : `<tr><td colspan="7" class="empty-state">No ${escapeHtml(role)} accounts match this filter.</td></tr>`;
+        const hasStudentNumber = role === 'student';
+        const emptyStateColumnCount = hasStudentNumber ? 7 : 6;
+        if (body) body.innerHTML = pageRows.length ? pageRows.map(user => `<tr><td class="user-select-cell"><input type="checkbox" data-user-select="${escapeHtml(user.id)}" aria-label="Select ${escapeHtml(user.username || user.email)}" ${state.selectedIds.has(String(user.id)) ? 'checked' : ''}></td>${hasStudentNumber ? `<td>${escapeHtml(user.student_number || '—')}</td>` : ''}<td><strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong><small class="muted-block">${escapeHtml(user.username)}</small></td><td>${escapeHtml(user.email)}</td><td><span class="status-badge status-active">${escapeHtml(user.role)}</span></td><td>${formatDate(user.created_at)}</td><td class="table-actions"><button class="btn btn-secondary btn-sm" onclick="accountManagement.editUser(${user.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="accountManagement.deleteUser(${user.id})">Delete</button></td></tr>`).join('') : `<tr><td colspan="${emptyStateColumnCount}" class="empty-state">No ${escapeHtml(role)} accounts match this filter.</td></tr>`;
         const count = document.getElementById(`role-count-${role}`); if (count) count.textContent = `${rows.length} account${rows.length === 1 ? '' : 's'}`;
         const selectedCount = state.selectedIds.size;
         const selectedLabel = grid?.querySelector('[data-selected-count]');
@@ -1202,7 +1208,7 @@
         const targetTitle = isAllRoles ? 'All roles' : (isAllUsers ? 'All users' : ([user.first_name, user.last_name].filter(Boolean).join(' ') || user?.username || 'Selected user'));
         const targetDetail = isAllRoles
             ? 'Shared defaults for every role in the portal.'
-            : (isAllUsers ? 'A common access policy for every user account.' : `${user.student_number || `No ${displayRole(user.role).toLowerCase()} number`} · ${user.email} · current role: ${displayRole(user.role)}`);
+            : (isAllUsers ? 'A common access policy for every user account.' : `${String(user.role).toLowerCase() === 'student' && user.student_number ? `${user.student_number} · ` : ''}${user.email} · current role: ${displayRole(user.role)}`);
         const saveButton = !isAllUsers && !isAllRoles ? '<button class="btn" data-save-role-access><i class="fas fa-save"></i> Save for this user</button>' : '';
         const roleButton = isAllRoles
             ? '<button class="btn" data-apply-all-roles><i class="fas fa-layer-group"></i> Apply to all roles</button>'

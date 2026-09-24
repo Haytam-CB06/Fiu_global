@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarRole = document.getElementById('user-sidebar-role');
     const sidebarGranted = document.getElementById('archive-sidebar-granted');
     const userDropdownBtn = document.getElementById('user-dropdown-btn');
-    const userDropdown = document.getElementById('user-dropdown-content');
+    const userDropdown = document.querySelector('.user-dropdown');
     const logoutBtn = document.getElementById('logout-btn');
     const themeBtn = document.getElementById('dark-mode-btn');
     const themeText = document.getElementById('current-theme');
@@ -101,6 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userLabel) {
                 userLabel.textContent = archiveT('portal.welcomeUser', 'Welcome, {name}', { name: data.user.username || archiveT('common.user', 'User') });
             }
+            const dashboardPath = getDashboardPath(data.user.role);
+            document.getElementById('archive-dashboard-menu-link')?.setAttribute('href', dashboardPath);
+            document.getElementById('archive-dashboard-link')?.setAttribute('href', dashboardPath);
+            document.getElementById('archive-chat-link')?.setAttribute('href', `${dashboardPath}/chat`);
+            document.getElementById('archive-profile-link')?.setAttribute('href', `${dashboardPath}/profile`);
+            document.getElementById('profile-btn')?.setAttribute('href', `${dashboardPath}/profile`);
             if (headerProfileName) {
                 headerProfileName.textContent = [data.user.first_name, data.user.last_name].filter(Boolean).join(' ').trim() || data.user.username || archiveT('common.account', 'Account');
             }
@@ -126,10 +132,16 @@ document.addEventListener('DOMContentLoaded', () => {
             userDropdownBtn.setAttribute('aria-expanded', String(open));
         });
         document.addEventListener('click', event => {
-            if (!event.target.closest('.user-dropdown')) {
+            if (!(event.target instanceof Element) || !event.target.closest('.user-dropdown')) {
                 userDropdown?.classList.remove('show');
                 userDropdownBtn?.setAttribute('aria-expanded', 'false');
             }
+        });
+        userDropdown?.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            userDropdown.classList.remove('show');
+            userDropdownBtn?.setAttribute('aria-expanded', 'false');
+            userDropdownBtn?.focus();
         });
     }
 
@@ -145,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : Object.keys(labels);
         sidebarGranted.innerHTML = allowed.filter(section => labels[section]).map(section => {
             const [icon, label] = labels[section];
-            return `<a class="user-sidebar-link" href="/student_dashboard/${section}"><i class="fas ${icon}"></i><span>${escapeHtml(label)}</span></a>`;
+            return `<a class="user-sidebar-link" href="${getDashboardPath(user?.role)}/${section}"><i class="fas ${icon}"></i><span>${escapeHtml(label)}</span></a>`;
         }).join('');
     }
 
@@ -378,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getDashboardPath(role) {
-        return '/student_dashboard';
+        return String(role || '').toLowerCase() === 'instructor' ? '/instructor_dashboard' : '/student_dashboard';
     }
 
     function initTheme() {

@@ -3886,3 +3886,263 @@ body.admin-portal #dashboard-section .ops-meal {
         -webkit-line-clamp: 1;
     }
 }
+
+/* Shared dark theme completion: keep surfaces, controls and text in contrast
+   across every admin and student/instructor page, including Archive. */
+body.admin-portal.dark-admin {
+    color-scheme: dark;
+    --fg-bg: #101722;
+    --fg-surface: #1a2635;
+    --fg-surface-soft: #222f40;
+    --fg-text: #eef3fa;
+    --fg-muted: #b5c1d1;
+    --fg-border: #3a4a5f;
+}
+
+body.admin-portal.dark-admin .role-user-grid,
+body.admin-portal.dark-admin .role-user-import,
+body.admin-portal.dark-admin .role-access-user,
+body.admin-portal.dark-admin .role-default-row,
+body.admin-portal.dark-admin .holiday-import-panel,
+body.admin-portal.dark-admin .user-import-panel,
+body.admin-portal.dark-admin .holiday-grid-toolbar,
+body.admin-portal.dark-admin .smart-filter,
+body.admin-portal.dark-admin .smart-filter-row,
+body.admin-portal.dark-admin .role-user-grid .table-responsive,
+body.admin-portal.dark-admin .archive-row {
+    background: var(--fg-surface) !important;
+    border-color: var(--fg-border) !important;
+    color: var(--fg-text) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid .table,
+body.admin-portal.dark-admin .role-user-grid .table tbody,
+body.admin-portal.dark-admin .role-user-grid .table tbody tr,
+body.admin-portal.dark-admin .role-user-grid .table tbody td {
+    background: transparent !important;
+    color: var(--fg-text) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid .table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, .035) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid .table tbody tr:hover {
+    background: rgba(115, 162, 224, .12) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid .table th,
+body.admin-portal.dark-admin .role-user-grid .table td {
+    border-color: var(--fg-border) !important;
+    color: var(--fg-text) !important;
+}
+
+body.admin-portal.dark-admin .role-grid-count,
+body.admin-portal.dark-admin .role-bulk-delete-toolbar,
+body.admin-portal.dark-admin .muted-block,
+body.admin-portal.dark-admin .empty-state,
+body.admin-portal.dark-admin .role-default-row span,
+body.admin-portal.dark-admin .holiday-grid-toolbar small {
+    color: var(--fg-muted) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid input:not([type="checkbox"]),
+body.admin-portal.dark-admin .role-user-grid select,
+body.admin-portal.dark-admin .role-user-import input:not([type="file"]),
+body.admin-portal.dark-admin .role-user-import select,
+body.admin-portal.dark-admin .smart-filter input,
+body.admin-portal.dark-admin .holiday-import-panel input,
+body.admin-portal.dark-admin .holiday-import-panel select,
+body.admin-portal.dark-admin .user-import-panel input,
+body.admin-portal.dark-admin .user-import-panel select {
+    background: #111c2a !important;
+    border-color: var(--fg-border) !important;
+    color: var(--fg-text) !important;
+}
+
+body.admin-portal.dark-admin .role-user-grid input::placeholder,
+body.admin-portal.dark-admin .smart-filter input::placeholder,
+body.admin-portal.dark-admin .role-user-import input::placeholder {
+    color: #aebbd0 !important;
+}
+
+body.admin-portal.dark-admin select option {
+    background: #182536;
+    color: #eef3fa;
+}
+
+body.admin-portal.dark-admin .role-user-grid .pagination-controls,
+body.admin-portal.dark-admin .role-user-grid .pagination-controls span {
+    color: var(--fg-text) !important;
+}
+
+body.dark-mode.user-portal {
+    color-scheme: dark;
+    --portal-dark-bg: #101722;
+    --portal-dark-surface: #1a2635;
+    --portal-dark-soft: #222f40;
+    --portal-dark-text: #eef3fa;
+    --portal-dark-muted: #b5c1d1;
+    --portal-dark-border: #3a4a5f;
+}
+
+body.dark-mode.user-portal .user-profile-page,
+body.dark-mode.user-portal .profile-page-password,
+body.dark-mode.user-portal .chat-contacts,
+body.dark-mode.user-portal .chat-active-contact,
+body.dark-mode.user-portal .campus-chat-messages,
+body.dark-mode.user-portal .archive-panel,
+body.dark-mode.user-portal .archive-item,
+body.dark-mode.user-portal .archive-week,
+body.dark-mode.user-portal .archive-week-day,
+body.dark-mode.user-portal .archive-meal,
+body.dark-mode.user-portal .archive-filter-field,
+body.dark-mode.user-portal .announcement-list-item,
+body.dark-mode.user-portal .announcements-container,
+body.dark-mode.user-portal .dining-calendar-shell,
+body.dark-mode.user-portal .dining-calendar-day,
+body.dark-mode.user-portal .profile-dialog {
+    background: var(--portal-dark-surface) !important;
+    border-color: var(--portal-dark-border) !important;
+    color: var(--portal-dark-text) !important;
+}
+
+body.dark-mode.user-portal .profile-page-form input,
+body.dark-mode.user-portal .profile-page-form select,
+body.dark-mode.user-portal .chat-contacts input,
+body.dark-mode.user-portal .archive-filter-field input,
+body.dark-mode.user-portal .announcement-search input {
+    background: #111c2a !important;
+    border-color: var(--portal-dark-border) !important;
+    color: var(--portal-dark-text) !important;
+}
+
+body.dark-mode.user-portal .profile-page-form input::placeholder,
+body.dark-mode.user-portal .chat-contacts input::placeholder,
+body.dark-mode.user-portal .archive-filter-field input::placeholder {
+    color: var(--portal-dark-muted) !important;
+}
+
+body.dark-mode.user-portal .profile-page-form label,
+body.dark-mode.user-portal .profile-page-heading h2,
+body.dark-mode.user-portal .profile-page-password h3,
+body.dark-mode.user-portal .chat-contacts-heading h3,
+body.dark-mode.user-portal .archive-panel h3,
+body.dark-mode.user-portal .archive-day-heading strong,
+body.dark-mode.user-portal .archive-meal p,
+body.dark-mode.user-portal .announcement-list-item h3 {
+    color: var(--portal-dark-text) !important;
+}
+
+body.dark-mode.user-portal .profile-page-form p,
+body.dark-mode.user-portal .profile-page-heading p,
+body.dark-mode.user-portal .chat-contact small,
+body.dark-mode.user-portal .chat-contact-time,
+body.dark-mode.user-portal .archive-result-count,
+body.dark-mode.user-portal .archive-item span,
+body.dark-mode.user-portal .announcement-list-item .announcement-excerpt,
+body.dark-mode.user-portal .announcement-list-item .announcement-date {
+    color: var(--portal-dark-muted) !important;
+}
+
+body.user-portal .user-sidebar-nav .user-sidebar-link:is(:hover, :focus-visible, .active, [aria-current="page"]) {
+    background: #15396d !important;
+    color: #fff !important;
+}
+
+body.dark-mode.user-portal .user-sidebar-nav .user-sidebar-link:is(:hover, :focus-visible, .active, [aria-current="page"]) {
+    background: #28558c !important;
+    color: #fff !important;
+}
+
+body.dark-mode.archive-page .archive-hero,
+body.dark-mode.archive-page .archive-panel,
+body.dark-mode.archive-page .archive-item,
+body.dark-mode.archive-page .archive-week,
+body.dark-mode.archive-page .archive-week-day,
+body.dark-mode.archive-page .archive-meal,
+body.dark-mode.archive-page .archive-filter-field {
+    background-color: var(--portal-dark-surface) !important;
+    border-color: var(--portal-dark-border) !important;
+    color: var(--portal-dark-text) !important;
+}
+
+body.dark-mode.archive-page .archive-hero {
+    background-image: radial-gradient(circle at 92% 0%, rgba(225, 177, 66, .12), transparent 32%), linear-gradient(135deg, #10223e, #17345a 65%, #1c3d68) !important;
+}
+
+body.dark-mode.archive-page .archive-week-header,
+body.dark-mode.archive-page .archive-week-header strong,
+body.dark-mode.archive-page .archive-meal p,
+body.dark-mode.archive-page .archive-day-heading strong,
+body.dark-mode.archive-page .archive-panel h3,
+body.dark-mode.archive-page .archive-hero h2,
+body.dark-mode.archive-page .archive-hero p {
+    color: var(--portal-dark-text) !important;
+}
+
+body.dark-mode.archive-page .archive-filter-field input {
+    background: #111c2a !important;
+    border-color: var(--portal-dark-border) !important;
+    color: var(--portal-dark-text) !important;
+}
+
+body.login-page.dark-mode .login-container {
+    background: #1a2635 !important;
+    border-color: #3a4a5f !important;
+    color: #eef3fa !important;
+}
+
+body.login-page.dark-mode .login-container h1,
+body.login-page.dark-mode .login-container h2,
+body.login-page.dark-mode .login-container h3,
+body.login-page.dark-mode .login-container label,
+body.login-page.dark-mode .login-container p {
+    color: #eef3fa !important;
+}
+
+body.login-page.dark-mode .login-container input {
+    background: #111c2a !important;
+    border-color: #3a4a5f !important;
+    color: #eef3fa !important;
+}
+
+/* Keep chat controls fixed while the contacts list itself becomes scrollable. */
+body.user-portal.portal-view-chat .chat-contacts {
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+}
+
+body.user-portal.portal-view-chat .chat-contacts-list {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #8a9bb4 rgba(100, 120, 150, .12);
+    scrollbar-gutter: stable;
+}
+
+body.user-portal.portal-view-chat .chat-contacts-list::-webkit-scrollbar { width: 9px; }
+body.user-portal.portal-view-chat .chat-contacts-list::-webkit-scrollbar-track { background: rgba(100, 120, 150, .12); border-radius: 999px; }
+body.user-portal.portal-view-chat .chat-contacts-list::-webkit-scrollbar-thumb { background: #8a9bb4; border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+body.dark-mode.user-portal.portal-view-chat .chat-contacts-list { scrollbar-color: #7187a7 rgba(255, 255, 255, .08); }
+body.dark-mode.user-portal.portal-view-chat .chat-contacts-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, .08); }
+body.dark-mode.user-portal.portal-view-chat .chat-contacts-list::-webkit-scrollbar-thumb { background: #7187a7; }
+
+@media (max-width: 900px) {
+    body.user-portal.portal-view-chat .chat-contacts {
+        height: auto !important;
+        grid-template-rows: auto auto minmax(100px, 28vh) !important;
+    }
+    body.user-portal.portal-view-chat .chat-contacts-list {
+        min-height: 100px !important;
+        max-height: 28vh !important;
+    }
+}
+
+/* The role-access availability note keeps its light green surface in dark mode. */
+body.admin-portal.dark-admin .core-access-note > div {
+    color: #000000 !important;
+}

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="css/portal-theme.css?v=2">
     <link rel="stylesheet" href="css/i18n.css?v=1">
     <link rel="stylesheet" href="css/session-timeout.css?v=1">
-    <link rel="stylesheet" href="css/design-fixes.css?v=39">
+    <link rel="stylesheet" href="css/design-fixes.css?v=40">
     <link rel="stylesheet" href="css/dashboard-refined.css?v=5">
     <link rel="stylesheet" href="css/portal-upgrades.css?v=21">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -238,7 +238,7 @@
                 </button>
                 <div class="user-dropdown-content" id="user-dropdown-content" role="menu" aria-label="Account menu">
                     <a id="profile-btn" class="btn topbar-pill" href="/student_dashboard/profile" role="menuitem"><span class="fa fa-user-circle" aria-hidden="true"></span> <span data-i18n="navigation.profile">Profile</span></a>
-                    <a class="btn topbar-pill" href="/student_dashboard" role="menuitem"><span class="fa fa-table-cells-large" aria-hidden="true"></span> <span data-i18n="navigation.dashboard">Dashboard</span></a>
+                    <a id="archive-dashboard-menu-link" class="btn topbar-pill" href="/student_dashboard" role="menuitem"><span class="fa fa-table-cells-large" aria-hidden="true"></span> <span data-i18n="navigation.dashboard">Dashboard</span></a>
                     <div class="language-switcher" role="none">
                         <button class="language-btn" id="language-btn" type="button" role="menuitem" aria-haspopup="true"><span id="current-language">English</span></button>
                         <div class="language-dropdown" id="language-dropdown">
@@ -259,9 +259,9 @@
         <aside id="user-sidebar" class="user-sidebar" aria-label="Portal navigation" data-i18n-aria-label="navigation.portalNavigation">
             <div class="user-sidebar-brand"><img src="/img/fiu9-mark2.png" alt="FIU Global Portal"><span><strong>FIU GLOBAL PORTAL</strong><small id="user-sidebar-role" data-i18n="portal.portal">Portal</small></span></div>
             <nav id="user-sidebar-nav" class="user-sidebar-nav">
-                <a class="user-sidebar-link mobile-section-entry" href="/student_dashboard"><i class="fas fa-table-columns"></i><span data-i18n="navigation.dashboard">Dashboard</span></a>
-                <a class="user-sidebar-link mobile-section-entry" href="/student_dashboard/chat"><i class="fas fa-comments"></i><span data-i18n="navigation.chat">Chat</span><span id="archive-chat-unread" class="chat-nav-unread" hidden aria-live="polite"></span></a>
-                <a class="user-sidebar-link mobile-section-entry" href="/student_dashboard/profile"><i class="fas fa-user-circle"></i><span data-i18n="navigation.profile">Profile</span></a>
+                <a id="archive-dashboard-link" class="user-sidebar-link mobile-section-entry" href="/student_dashboard"><i class="fas fa-table-columns"></i><span data-i18n="navigation.dashboard">Dashboard</span></a>
+                <a id="archive-chat-link" class="user-sidebar-link mobile-section-entry" href="/student_dashboard/chat"><i class="fas fa-comments"></i><span data-i18n="navigation.chat">Chat</span><span id="archive-chat-unread" class="chat-nav-unread" hidden aria-live="polite"></span></a>
+                <a id="archive-profile-link" class="user-sidebar-link mobile-section-entry" href="/student_dashboard/profile"><i class="fas fa-user-circle"></i><span data-i18n="navigation.profile">Profile</span></a>
                 <a class="user-sidebar-link mobile-section-entry active" href="/archive" aria-current="page" aria-label="Archive"><i class="fas fa-box-archive" aria-hidden="true"></i><span data-i18n="navigation.archive">Archive</span></a>
                 <div id="archive-sidebar-granted" class="user-sidebar-granted"></div>
             </nav>
@@ -289,6 +289,6 @@
     <script src="js/language.js?v=14"></script>
     <script src="js/portal-i18n-catalog.js?v=2"></script>
     <script src="js/session-timeout.js?v=1"></script>
-    <script src="js/archive.js?v=6"></script>
+    <script src="js/archive.js?v=7"></script>
 </body>
 </html>

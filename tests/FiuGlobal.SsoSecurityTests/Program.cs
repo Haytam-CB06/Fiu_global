@@ -1,4 +1,5 @@
 using FiuGlobal.DotNet.Services;
+using FiuGlobal.DotNet.Models;
 
 var failures = new List<string>();
 
@@ -62,6 +63,42 @@ Check(!platformStore.GetPlatforms("student").Any(platform => platform.Name == "A
 var instructor = platformStore.CreateUser("test-instructor", "test-instructor@example.test", "temporary-test-password", "instructor");
 var student = platformStore.CreateUser("test-student", "test-student@example.test", "temporary-test-password", "student");
 Check(instructor.Success && student.Success, "isolated instructor and student accounts created");
+var createdAccounts = platformStore.GetUsersForAdmin().ToDictionary(
+    row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
+    row => row,
+    StringComparer.OrdinalIgnoreCase);
+if (createdAccounts.TryGetValue("test-instructor", out var instructorAccount))
+{
+    Check((string)instructorAccount.GetType().GetProperty("student_number")!.GetValue(instructorAccount)! == string.Empty,
+        "new instructor accounts do not receive student numbers");
+    var instructorProfile = platformStore.GetUserProfile((int)instructorAccount.GetType().GetProperty("id")!.GetValue(instructorAccount)!);
+    Check(instructorProfile is not null && (string)instructorProfile.GetType().GetProperty("student_number")!.GetValue(instructorProfile)! == string.Empty,
+        "non-student profile responses do not expose student numbers");
+}
+if (createdAccounts.TryGetValue("test-student", out var studentAccount))
+{
+    Check(((string)studentAccount.GetType().GetProperty("student_number")!.GetValue(studentAccount)!).StartsWith("STU-", StringComparison.Ordinal),
+        "new student accounts receive student numbers");
+}
+var importedRoles = platformStore.ImportUsers([
+    new UserImportRow("imported-instructor", "imported-instructor@example.test", "instructor", "temporary-test-password"),
+    new UserImportRow("imported-student", "imported-student@example.test", "student", "temporary-test-password")
+]);
+Check(importedRoles.Success && importedRoles.Imported == 2, "role-specific user import accepts student and instructor rows");
+var importedAccounts = platformStore.GetUsersForAdmin().ToDictionary(
+    row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
+    row => row,
+    StringComparer.OrdinalIgnoreCase);
+if (importedAccounts.TryGetValue("imported-instructor", out var importedInstructor))
+{
+    Check((string)importedInstructor.GetType().GetProperty("student_number")!.GetValue(importedInstructor)! == string.Empty,
+        "imported instructor accounts do not receive student numbers");
+}
+if (importedAccounts.TryGetValue("imported-student", out var importedStudent))
+{
+    Check(((string)importedStudent.GetType().GetProperty("student_number")!.GetValue(importedStudent)!).StartsWith("STU-", StringComparison.Ordinal),
+        "imported student accounts receive student numbers");
+}
 var userAccess = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase) { ["AIS"] = true };
 var testUserIds = platformStore.GetUserRoleAccess().ToDictionary(
     row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
