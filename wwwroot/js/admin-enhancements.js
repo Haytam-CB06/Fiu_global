@@ -3,6 +3,7 @@
     const defaultPlatformImage = '/img/fiu9-mark2.png';
     let platformPage = 1;
     const platformPageSize = 6;
+    let platformRoleOptionsPromise = Promise.resolve(false);
     let pendingDiningImportForm = null;
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -624,7 +625,7 @@
                 </div>
             </div>
         `);
-        document.getElementById('new-platform-btn')?.addEventListener('click', () => openPlatformModal());
+        document.getElementById('new-platform-btn')?.addEventListener('click', () => openPlatformModal(panel));
         document.getElementById('manage-platform-form')?.addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -653,7 +654,7 @@
             closePlatformModal();
         });
         setupPlatformImageControls(panel);
-        loadPlatformRoleOptions();
+        platformRoleOptionsPromise = loadPlatformRoleOptions();
         const originalRender = panel.renderPlatforms.bind(panel);
         panel.renderPlatforms = platforms => {
             originalRender(platforms);
@@ -678,8 +679,11 @@
                     <label class="checkbox-row"><input type="checkbox" name="visible_to_roles" value="${escapeHtml(role)}" checked><span>${escapeHtml(role.replace(/-/g, ' ').replace(/\b\w/g, character => character.toUpperCase()))}</span></label>
                 `).join('');
             });
+            return roles.length > 0;
         } catch {
-            // Keep the forms usable if role metadata is temporarily unavailable.
+            // Do not open the editor with an incomplete role list: saving it
+            // could silently remove visibility assignments for custom roles.
+            return false;
         }
     }
 
@@ -734,7 +738,11 @@
         form.elements.id.value = '';
     }
 
-    window.editManagedPlatform = function (id) {
+    window.editManagedPlatform = async function (id) {
+        if (!await platformRoleOptionsPromise) {
+            window.adminPanel?.showNotification?.('Unable to load role options. Refresh the page and try again.', 'error');
+            return;
+        }
         const panel = window.adminPanel;
         const platform = panel?.platforms?.find(item => item.id === id);
         const form = document.getElementById('platform-modal-form');
@@ -745,14 +753,22 @@
         form.elements.url.value = platform.url || '';
         form.elements.description.value = platform.description || '';
         form.elements.notifications_url.value = platform.notifications_url || '';
-        const roles = platform.visible_to_roles || ['student', 'instructor'];
-        form.querySelectorAll('input[name="visible_to_roles"]').forEach(input => input.checked = roles.includes(input.value));
+        const configuredRoles = platform.visible_to_roles ?? platform.visibleToRoles ?? platform.VisibleToRoles;
+        const roles = new Set((Array.isArray(configuredRoles) ? configuredRoles : ['student', 'instructor'])
+            .map(role => String(role || '').trim().toLowerCase()));
+        form.querySelectorAll('input[name="visible_to_roles"]').forEach(input => {
+            input.checked = roles.has(input.value.trim().toLowerCase());
+        });
         setPlatformImageState(form, platform);
         document.getElementById('platform-modal-title').textContent = 'Edit Platform';
         document.getElementById('platform-edit-modal')?.classList.add('show');
     };
 
-    function openPlatformModal(platform) {
+    async function openPlatformModal(panel, platform) {
+        if (!await platformRoleOptionsPromise) {
+            notify(panel, 'Unable to load role options. Refresh the page and try again.', 'error');
+            return;
+        }
         const form = document.getElementById('platform-modal-form');
         if (!form) return;
         form.reset();

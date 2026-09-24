@@ -556,6 +556,8 @@ class AdminPanel {
                     email: formData.email,
                     password: formData.password,
                     role: formData.role,
+                    faculty_id: formData.faculty_id,
+                    department_id: formData.department_id,
                     current_admin_id: this.currentAdmin.id
                 })
             });

@@ -31,6 +31,7 @@
         `);
 
         injectSidebarToggle();
+        injectMobileSidebarControls();
         wrapSidebarLabels();
         if (localStorage.getItem('adminSidebarCollapsed') === 'true') {
             document.body.classList.add('sidebar-collapsed');
@@ -38,6 +39,32 @@
         document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
             document.body.classList.toggle('sidebar-collapsed');
             localStorage.setItem('adminSidebarCollapsed', document.body.classList.contains('sidebar-collapsed') ? 'true' : 'false');
+        });
+
+        const mobileMenuButton = document.getElementById('admin-mobile-menu-toggle');
+        const mobileSidebarCloseButton = document.getElementById('admin-mobile-sidebar-close');
+        const sidebarBackdrop = document.getElementById('admin-sidebar-backdrop');
+        const setMobileSidebarOpen = isOpen => {
+            document.body.classList.toggle('mobile-sidebar-open', isOpen);
+            mobileMenuButton?.setAttribute('aria-expanded', String(isOpen));
+            if (sidebarBackdrop) sidebarBackdrop.hidden = !isOpen;
+            if (mobileMenuButton) {
+                mobileMenuButton.innerHTML = `<i class="fas ${isOpen ? 'fa-times' : 'fa-bars'}" aria-hidden="true"></i>`;
+            }
+        };
+        mobileMenuButton?.addEventListener('click', () => {
+            setMobileSidebarOpen(!document.body.classList.contains('mobile-sidebar-open'));
+        });
+        mobileSidebarCloseButton?.addEventListener('click', () => setMobileSidebarOpen(false));
+        sidebarBackdrop?.addEventListener('click', () => setMobileSidebarOpen(false));
+        document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => setMobileSidebarOpen(false));
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') setMobileSidebarOpen(false);
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 900) setMobileSidebarOpen(false);
         });
         document.getElementById('admin-topbar-logout').addEventListener('click', () => window.adminPanel?.logout());
 
@@ -83,6 +110,37 @@
                 <i class="fas fa-bars"></i>
             </button>
         `);
+    }
+
+    function injectMobileSidebarControls() {
+        const topbar = document.getElementById('admin-topbar');
+        if (!topbar || document.getElementById('admin-mobile-menu-toggle')) return;
+
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar && !sidebar.id) sidebar.id = 'admin-sidebar';
+        if (sidebar && !document.getElementById('admin-mobile-sidebar-close')) {
+            sidebar.insertAdjacentHTML('afterbegin', `
+                <button class="admin-mobile-sidebar-close" id="admin-mobile-sidebar-close" type="button"
+                    aria-label="Close navigation menu" title="Close navigation menu">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            `);
+        }
+        topbar.insertAdjacentHTML('afterbegin', `
+            <button class="admin-mobile-menu-toggle" id="admin-mobile-menu-toggle" type="button"
+                data-i18n-aria-label="admin.shell.toggleSidebar" aria-label="Toggle sidebar"
+                aria-controls="admin-sidebar" aria-expanded="false">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
+        `);
+
+        const backdrop = document.createElement('button');
+        backdrop.type = 'button';
+        backdrop.id = 'admin-sidebar-backdrop';
+        backdrop.className = 'admin-sidebar-backdrop';
+        backdrop.setAttribute('aria-label', 'Close navigation menu');
+        backdrop.hidden = true;
+        document.body.append(backdrop);
     }
 
     function wrapSidebarLabels() {

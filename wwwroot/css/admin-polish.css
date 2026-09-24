@@ -2029,8 +2029,23 @@ body.admin-portal .user-import-feedback {
 }
 
 body.admin-portal .user-import-feedback.success { color: #237447; }
+body.admin-portal .user-import-feedback.warning { color: #936100; }
 body.admin-portal .user-import-feedback.error { color: #b43b48; }
+body.admin-portal .user-import-errors {
+    flex: 1 0 100%;
+    margin: 0;
+    padding: 12px 16px 12px 34px;
+    border: 1px solid #edc4c8;
+    border-radius: 10px;
+    color: #922e3b;
+    background: #fff5f5;
+    line-height: 1.5;
+}
+body.admin-portal .user-import-errors[hidden] { display: none; }
+body.admin-portal .user-import-errors li + li { margin-top: 4px; }
 body.admin-portal.dark-admin .user-import-panel { background: #182536; border-color: #3b4f69; }
+body.admin-portal.dark-admin .user-import-errors { color: #ffc4c8; background: #38222b; border-color: #74434c; }
+body.admin-portal.dark-admin .user-import-feedback.warning { color: #ffd778; }
 body.admin-portal.dark-admin .user-import-copy h3 { color: #eaf1fc; }
 body.admin-portal.dark-admin .user-import-copy p,
 body.admin-portal.dark-admin .user-import-file-name { color: #bdc9d9; }
@@ -2054,6 +2069,11 @@ body.admin-portal.dark-admin .user-import-file-name { color: #bdc9d9; }
 
     body.admin-portal .user-import-actions .btn {
         flex: 1 1 100%;
+    }
+
+    body.admin-portal .user-import-errors {
+        overflow-wrap: anywhere;
+        padding-left: 28px;
     }
 }
 
@@ -2451,5 +2471,203 @@ body.admin-portal.dark-admin .recurring-calendar-date:disabled {
 
     body.admin-portal .recurring-calendar-actions .btn:first-child {
         margin-right: 0;
+    }
+}
+
+/* Faculty directory actions and department cards */
+body.admin-portal .faculty-directory-actions .faculty-directory-save,
+body.admin-portal .faculty-department-actions .faculty-directory-save {
+    border: 1px solid #18834e !important;
+    color: #fff !important;
+    background: #198754 !important;
+    box-shadow: 0 5px 12px rgba(25, 135, 84, .18);
+}
+
+body.admin-portal .faculty-directory-actions .faculty-directory-save:hover,
+body.admin-portal .faculty-department-actions .faculty-directory-save:hover {
+    border-color: #126b3e !important;
+    background: #157347 !important;
+    box-shadow: 0 7px 16px rgba(25, 135, 84, .26);
+    transform: translateY(-1px);
+}
+
+body.admin-portal .faculty-directory-actions .faculty-directory-danger,
+body.admin-portal .faculty-department-actions .faculty-directory-danger {
+    border: 1px solid #c73540 !important;
+    color: #fff !important;
+    background: #dc3545 !important;
+    box-shadow: 0 5px 12px rgba(220, 53, 69, .16);
+}
+
+body.admin-portal .faculty-directory-actions .faculty-directory-danger:hover,
+body.admin-portal .faculty-department-actions .faculty-directory-danger:hover {
+    border-color: #ad2531 !important;
+    background: #c82333 !important;
+    box-shadow: 0 7px 16px rgba(220, 53, 69, .24);
+    transform: translateY(-1px);
+}
+
+body.admin-portal .faculty-directory-actions .btn,
+body.admin-portal .faculty-department-actions .btn {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 11px !important;
+    font-weight: 800;
+    transition: background-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+body.admin-portal .faculty-department-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #e0e8f2;
+    border-radius: 16px;
+    background: #f5f8fc;
+}
+
+body.admin-portal .faculty-department-heading {
+    padding: 0 2px 2px;
+}
+
+body.admin-portal .faculty-department-heading h4 {
+    font-size: 1rem;
+}
+
+body.admin-portal .faculty-department-heading > span {
+    min-width: 30px;
+    padding: 4px 10px;
+    border: 1px solid #dce5f0;
+    background: #fff;
+}
+
+body.admin-portal .faculty-department-row {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: 13px;
+    padding: 16px;
+    border: 1px solid #d9e3ef;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(26, 49, 79, .055);
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+body.admin-portal .faculty-department-row:hover {
+    border-color: #b9cbe0;
+    box-shadow: 0 9px 22px rgba(26, 49, 79, .09);
+    transform: translateY(-1px);
+}
+
+body.admin-portal .faculty-department-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #28415f;
+    font-size: .84rem;
+    font-weight: 800;
+}
+
+body.admin-portal .faculty-department-icon {
+    display: grid;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid #d9e7f8;
+    border-radius: 11px;
+    color: #1b4f8c;
+    background: #eaf2fc;
+}
+
+body.admin-portal .faculty-department-name {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch;
+    gap: 7px;
+    color: #536781;
+    font-size: .82rem;
+    font-weight: 800;
+}
+
+body.admin-portal .faculty-department-name input {
+    min-width: 0;
+    min-height: 46px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+body.admin-portal .faculty-department-name input:focus-visible {
+    outline: 3px solid rgba(27, 79, 140, .18);
+    border-color: #1b4f8c;
+}
+
+body.admin-portal .faculty-department-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e8edf4;
+}
+
+body.admin-portal .faculty-department-row .faculty-directory-toggle {
+    color: #405570;
+}
+
+body.admin-portal .faculty-department-row .btn {
+    min-width: 88px;
+    padding: 8px 12px !important;
+}
+
+body.admin-portal.dark-admin .faculty-department-list {
+    border-color: #304258;
+    background: #142236;
+}
+
+body.admin-portal.dark-admin .faculty-department-heading > span {
+    border-color: #3b4f69;
+    color: #d5e0ef;
+    background: #1b2b42;
+}
+
+body.admin-portal.dark-admin .faculty-department-card-heading,
+body.admin-portal.dark-admin .faculty-department-row .faculty-directory-toggle {
+    color: #dce7f6;
+}
+
+body.admin-portal.dark-admin .faculty-department-icon {
+    border-color: #385579;
+    color: #b6d4ff;
+    background: #203b5e;
+}
+
+body.admin-portal.dark-admin .faculty-department-controls {
+    border-color: #304258;
+}
+
+@media (max-width: 560px) {
+    body.admin-portal .faculty-department-list {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 12px;
+    }
+
+    body.admin-portal .faculty-department-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    body.admin-portal .faculty-department-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.admin-portal .faculty-department-row .btn {
+        width: 100%;
     }
 }

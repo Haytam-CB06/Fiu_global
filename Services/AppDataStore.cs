@@ -468,6 +468,8 @@ public sealed class AppDataStore
                         first_name = user.FirstName,
                         last_name = user.LastName,
                         profile_picture = user.ProfilePicture,
+                        faculty_id = user.FacultyId,
+                        department_id = user.DepartmentId,
                         faculty = user.Faculty,
                         department = user.Department,
                         allowed_sections = GetEffectiveSectionsForUser(user),
@@ -627,8 +629,9 @@ public sealed class AppDataStore
         }
     }
 
-    public OperationResult CreateUser(string username, string email, string password, string role)
+    public OperationResult CreateUser(string username, string email, string password, string role, int? facultyId = null, int? departmentId = null)
     {
+        _ = GetFacultyDepartments();
         lock (_gate)
         {
             username = username.Trim();
@@ -645,6 +648,21 @@ public sealed class AppDataStore
                 return new OperationResult(false, "Username or email already exists");
             }
 
+            string facultyName = string.Empty;
+            string departmentName = string.Empty;
+            if (facultyId.HasValue || departmentId.HasValue)
+            {
+                var affiliationBody = new Dictionary<string, object?>
+                {
+                    ["faculty_id"] = facultyId.GetValueOrDefault(),
+                    ["department_id"] = departmentId.GetValueOrDefault()
+                };
+                if (!TryResolveAffiliation(affiliationBody, out facultyId, out departmentId, out facultyName, out departmentName, out var affiliationError))
+                {
+                    return new OperationResult(false, affiliationError);
+                }
+            }
+
             _state.Users.Add(new UserAccount
             {
                 Id = _state.Counters.NextUserId++,
@@ -652,6 +670,10 @@ public sealed class AppDataStore
                 Email = email,
                 Password = PasswordSecurity.Hash(password),
                 Role = role,
+                FacultyId = facultyId,
+                DepartmentId = departmentId,
+                Faculty = facultyName,
+                Department = departmentName,
                 AllowedSections = [],
                 // Inherit the role's current defaults until an administrator
                 // explicitly configures this user's access.
@@ -689,12 +711,13 @@ public sealed class AppDataStore
     }
 
     /// <summary>
-    /// Creates a batch of user accounts only after every spreadsheet row has
-    /// passed validation. Passwords are hashed before storage and are never
-    /// included in activity logs or returned to callers.
+    /// Imports valid rows and skips rows with conflicts or invalid data.
+    /// Passwords are hashed before storage and are never included in activity
+    /// logs or returned to callers.
     /// </summary>
     public UserImportResult ImportUsers(IEnumerable<UserImportRow>? sourceRows)
     {
+        _ = GetFacultyDepartments();
         lock (_gate)
         {
             var rows = sourceRows?.ToList() ?? [];
@@ -710,12 +733,13 @@ public sealed class AppDataStore
             var availableRoles = new HashSet<string>(GetAvailableUserRoles(), StringComparer.OrdinalIgnoreCase);
             var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var emails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var normalizedRows = new List<(int RowNumber, string Username, string Email, string Role, string Password)>();
+            var normalizedRows = new List<(int RowNumber, string Username, string Email, string Role, string Password, int? FacultyId, int? DepartmentId, string Faculty, string Department)>();
             var errors = new List<string>();
+            var skippedRows = new HashSet<int>();
 
             for (var index = 0; index < rows.Count; index++)
             {
-                var rowNumber = index + 2;
+                var rowNumber = rows[index].RowNumber > 0 ? rows[index].RowNumber : index + 2;
                 var username = rows[index].Username.Trim();
                 var email = rows[index].Email.Trim();
                 var role = NormalizeUserRole(rows[index].Role);
@@ -724,35 +748,81 @@ public sealed class AppDataStore
                 if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
                 {
                     errors.Add($"Row {rowNumber}: Username, Email, Role, and Password are required.");
+                    skippedRows.Add(rowNumber);
                     continue;
                 }
                 if (!availableRoles.Contains(role))
                 {
                     errors.Add($"Row {rowNumber}: choose a role from the workbook dropdown.");
+                    skippedRows.Add(rowNumber);
                     continue;
                 }
+                var hasIdentityConflict = false;
                 if (!usernames.Add(username))
                 {
-                    errors.Add($"Row {rowNumber}: the username appears more than once in this import.");
-                    continue;
+                    errors.Add($"Row {rowNumber}: username '{username}' is duplicated in this workbook.");
+                    hasIdentityConflict = true;
                 }
                 if (!emails.Add(email))
                 {
-                    errors.Add($"Row {rowNumber}: the email appears more than once in this import.");
-                    continue;
+                    errors.Add($"Row {rowNumber}: email '{email}' is duplicated in this workbook.");
+                    hasIdentityConflict = true;
                 }
-                if (AccountNameExists(username) || AccountEmailExists(email))
+                if (AccountNameExists(username))
                 {
-                    errors.Add($"Row {rowNumber}: the username or email already exists.");
+                    errors.Add($"Row {rowNumber}: username '{username}' already belongs to an account. Use a unique username.");
+                    hasIdentityConflict = true;
+                }
+                if (AccountEmailExists(email))
+                {
+                    errors.Add($"Row {rowNumber}: email '{email}' already belongs to an account. Use a unique email address.");
+                    hasIdentityConflict = true;
+                }
+                if (hasIdentityConflict)
+                {
+                    skippedRows.Add(rowNumber);
                     continue;
                 }
 
-                normalizedRows.Add((rowNumber, username, email, role, password));
+                var facultyName = rows[index].Faculty.Trim();
+                var departmentName = rows[index].Department.Trim();
+                FacultyItem? faculty = null;
+                DepartmentItem? department = null;
+                if (!string.IsNullOrWhiteSpace(departmentName) && string.IsNullOrWhiteSpace(facultyName))
+                {
+                    errors.Add($"Row {rowNumber}: choose a faculty when a department is provided.");
+                    skippedRows.Add(rowNumber);
+                    continue;
+                }
+                if (!string.IsNullOrWhiteSpace(facultyName))
+                {
+                    faculty = _state.Faculties.FirstOrDefault(item =>
+                        item.IsActive && item.Name.Equals(facultyName, StringComparison.OrdinalIgnoreCase));
+                    if (faculty is null)
+                    {
+                        errors.Add($"Row {rowNumber}: faculty '{facultyName}' was not found in the active faculty directory.");
+                        skippedRows.Add(rowNumber);
+                        continue;
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(departmentName) && faculty is not null)
+                {
+                    department = _state.Departments.FirstOrDefault(item =>
+                        item.IsActive && item.FacultyId == faculty.Id && item.Name.Equals(departmentName, StringComparison.OrdinalIgnoreCase));
+                    if (department is null)
+                    {
+                        errors.Add($"Row {rowNumber}: department '{departmentName}' was not found under faculty '{faculty.Name}'.");
+                        skippedRows.Add(rowNumber);
+                        continue;
+                    }
+                }
+
+                normalizedRows.Add((rowNumber, username, email, role, password, faculty?.Id, department?.Id, faculty?.Name ?? string.Empty, department?.Name ?? string.Empty));
             }
 
-            if (errors.Count > 0)
+            if (normalizedRows.Count == 0)
             {
-                return new UserImportResult(false, 0, errors);
+                return new UserImportResult(false, 0, errors, skippedRows.Count);
             }
 
             foreach (var row in normalizedRows)
@@ -764,6 +834,10 @@ public sealed class AppDataStore
                     Email = row.Email,
                     Password = PasswordSecurity.Hash(row.Password),
                     Role = row.Role,
+                    FacultyId = row.FacultyId,
+                    DepartmentId = row.DepartmentId,
+                    Faculty = row.Faculty,
+                    Department = row.Department,
                     AllowedSections = [],
                     SectionAccessConfigured = false,
                     SectionPermissions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
@@ -773,7 +847,7 @@ public sealed class AppDataStore
 
             AddActivityInternal(null, "system", "admin", "user_import", $"{normalizedRows.Count} user accounts imported");
             Save();
-            return new UserImportResult(true, normalizedRows.Count, []);
+            return new UserImportResult(true, normalizedRows.Count, errors, skippedRows.Count);
         }
     }
 
@@ -811,8 +885,9 @@ public sealed class AppDataStore
         }
     }
 
-    public OperationResult UpdateUser(int id, string username, string email, string role)
+    public OperationResult UpdateUser(int id, string username, string email, string role, int? facultyId = null, int? departmentId = null)
     {
+        _ = GetFacultyDepartments();
         lock (_gate)
         {
             var user = _state.Users.FirstOrDefault(item => item.Id == id);
@@ -841,6 +916,27 @@ public sealed class AppDataStore
                 return new OperationResult(false, "Email already exists");
             }
 
+            if (facultyId.HasValue || departmentId.HasValue)
+            {
+                var requestedFacultyId = facultyId ?? user.FacultyId ?? 0;
+                var requestedDepartmentId = departmentId ?? user.DepartmentId ?? 0;
+                if (requestedFacultyId != user.FacultyId.GetValueOrDefault() || requestedDepartmentId != user.DepartmentId.GetValueOrDefault())
+                {
+                    var affiliationBody = new Dictionary<string, object?>
+                    {
+                        ["faculty_id"] = requestedFacultyId,
+                        ["department_id"] = requestedDepartmentId
+                    };
+                    if (!TryResolveAffiliation(affiliationBody, out var resolvedFacultyId, out var resolvedDepartmentId, out var facultyName, out var departmentName, out var affiliationError))
+                    {
+                        return new OperationResult(false, affiliationError);
+                    }
+                    user.FacultyId = resolvedFacultyId;
+                    user.DepartmentId = resolvedDepartmentId;
+                    user.Faculty = facultyName;
+                    user.Department = departmentName;
+                }
+            }
             user.Username = username;
             user.Email = email;
             user.Role = role;
@@ -894,6 +990,7 @@ public sealed class AppDataStore
 
     public OperationResult UpdateUserProfile(int id, Dictionary<string, object?> body)
     {
+        _ = GetFacultyDepartments();
         lock (_gate)
         {
             var user = _state.Users.FirstOrDefault(item => item.Id == id);
@@ -908,9 +1005,16 @@ public sealed class AppDataStore
             {
                 return new OperationResult(false, "Email already exists.");
             }
-            if (!TryResolveAffiliation(body, out var facultyId, out var departmentId, out var facultyName, out var departmentName, out var affiliationError))
+            var facultyId = user.FacultyId;
+            var departmentId = user.DepartmentId;
+            var facultyName = user.Faculty;
+            var departmentName = user.Department;
+            if (user.Role.Equals("instructor", StringComparison.OrdinalIgnoreCase))
             {
-                return new OperationResult(false, affiliationError);
+                if (!TryResolveAffiliation(body, out facultyId, out departmentId, out facultyName, out departmentName, out var affiliationError))
+                {
+                    return new OperationResult(false, affiliationError);
+                }
             }
             user.StudentNumber = body.GetString("student_number").Trim();
             user.FirstName = body.GetString("first_name").Trim();
@@ -1413,12 +1517,18 @@ public sealed class AppDataStore
         }
     }
 
-    public List<PlatformLink> GetPlatforms(string? role = null)
+    // Admin platform management intentionally sees every platform; role-based
+    // lookups must always have a role and honor each platform's visibility list.
+    public List<PlatformLink> GetPlatforms() => GetPlatformsInternal(null, includeAll: true);
+
+    public List<PlatformLink> GetPlatforms(string? role) => GetPlatformsInternal(role, includeAll: false);
+
+    private List<PlatformLink> GetPlatformsInternal(string? role, bool includeAll)
     {
         lock (_gate)
         {
             return _state.Platforms
-                .Where(platform => string.IsNullOrWhiteSpace(role) || platform.VisibleToRoles.Count == 0 || platform.VisibleToRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                .Where(platform => includeAll || IsPlatformVisibleToRole(platform, role))
                 .OrderBy(platform => platform.Section)
                 .ThenBy(platform => platform.Name)
                 .Select(Clone)
@@ -1435,7 +1545,11 @@ public sealed class AppDataStore
             if (!GetEffectiveSectionsForUser(user).Contains("platforms", StringComparer.OrdinalIgnoreCase)) return [];
             var configured = _state.UserPlatformAccess.Where(item => item.UserId == id).ToList();
             var allowedNames = configured.Where(item => item.IsActive).Select(item => item.Platform).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Platform role visibility is the global ceiling: explicit user
+            // overrides and role-level platform permissions may narrow access,
+            // but must never expose a platform to an unchecked role.
             var all = _state.Platforms
+                .Where(platform => IsPlatformVisibleToRole(platform, user.Role))
                 .OrderBy(platform => platform.Section)
                 .ThenBy(platform => platform.Name)
                 .Select(Clone)
@@ -1487,7 +1601,7 @@ public sealed class AppDataStore
                 "New platform",
                 $"{platform.Name} is now available in {platform.Section}.",
                 platform.Url,
-                platform.VisibleToRoles.Count == 0 ? ["student", "instructor"] : platform.VisibleToRoles);
+                platform.VisibleToRoles);
             AddActivityInternal(null, "system", "system", "platform_create", name.Trim());
             Save();
             return true;
@@ -2592,7 +2706,7 @@ public sealed class AppDataStore
             [
                 NewPlatform(1, "Leave and Absence", "Leave and Absence Portal", "https://leave.fnlsrv.website/", null),
                 NewPlatform(2, "RMS", "Residency Management System", "https://rms.fnlsrv.website/publicHome.php", null),
-                NewPlatform(3, "AIS", "Academic Information System", "https://ais.final.edu.tr/", null),
+                NewPlatform(3, "AIS", "Academic Information System", "https://ais.final.edu.tr/", null, ["instructor"]),
                 NewPlatform(4, "LMS", "Learning Management System", "https://lms0.final.edu.tr", null),
                 NewPlatform(5, "Document Application System", "Document Application System for Students", "https://docs.final.edu.tr/pages/form", null),
                 NewPlatform(6, "Summer School Application", "Summer School Application", "https://online.final.edu.tr/yazokulu/login.php", null),
@@ -3468,8 +3582,12 @@ public sealed class AppDataStore
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return cleaned.Count == 0 ? ["student", "instructor"] : cleaned;
+        return cleaned;
     }
+
+    private static bool IsPlatformVisibleToRole(PlatformLink platform, string? role) =>
+        !string.IsNullOrWhiteSpace(role) &&
+        platform.VisibleToRoles?.Contains(NormalizeRoleKey(role), StringComparer.OrdinalIgnoreCase) == true;
 
     private static string NormalizePlatformImageUrl(string? value)
     {
@@ -3757,7 +3875,7 @@ public sealed class AppDataStore
         updated_at = item.UpdatedAt
     };
 
-    private static PlatformLink NewPlatform(int id, string name, string description, string url, string? notificationsUrl) =>
+    private static PlatformLink NewPlatform(int id, string name, string description, string url, string? notificationsUrl, List<string>? visibleToRoles = null) =>
         new()
         {
             Id = id,
@@ -3766,7 +3884,7 @@ public sealed class AppDataStore
             Description = description,
             Url = url,
             NotificationsUrl = notificationsUrl,
-            VisibleToRoles = ["student", "instructor"],
+            VisibleToRoles = visibleToRoles ?? ["student", "instructor"],
             CreatedAt = DateTime.UtcNow.AddDays(-90)
         };
 

@@ -1,6 +1,8 @@
 (function () {
     const api = () => (window.APP_CONFIG && window.APP_CONFIG.ADMIN_API_BASE_URL) || window.ADMIN_API_BASE_URL || '/database/admin_api.php';
     let editingUserId = null;
+    let accountFacultyDirectory = null;
+    let accountFacultyDirectoryPromise = null;
 
     const ACCOUNT_TRANSLATIONS = {
         en: {
@@ -397,6 +399,7 @@
         patchUserRenderer(panel);
         patchHolidayRenderer(panel);
         bindUserImport(panel);
+        setupUserAffiliationSelectors();
         loadAvailableCreateUserRoles();
         panel.loadUsers();
         if (window.location.pathname.toLowerCase().endsWith('/role-access')) loadRoleAccess(panel);
@@ -681,6 +684,10 @@
                         <option value="student">Student</option>
                         <option value="instructor">Instructor</option>
                     </select>
+                    <label for="create-user-faculty">Faculty</label>
+                    <select id="create-user-faculty" name="faculty_id"><option value="">Select a faculty</option></select>
+                    <label for="create-user-department">Department</label>
+                    <select id="create-user-department" name="department_id" disabled><option value="">Select a faculty first</option></select>
                     <input name="password" type="password" placeholder="Temporary password" required>
                     <button class="btn" type="submit"><i class="fas fa-save"></i> Create Account</button>
                 </form>
@@ -721,6 +728,14 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="user-faculty">Faculty</label>
+                        <select id="user-faculty" name="faculty_id"><option value="">Select a faculty</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-department">Department</label>
+                        <select id="user-department" name="department_id" disabled><option value="">Select a faculty first</option></select>
+                    </div>
+                    <div class="form-group">
                         <label for="user-password">Password</label>
                         <input type="password" id="user-password" name="password" placeholder="Required for new users">
                     </div>
@@ -737,6 +752,87 @@
         document.getElementById('user-manage-form').addEventListener('submit', event => saveUser(event, panel));
     }
 
+    async function setupUserAffiliationSelectors() {
+        const forms = ['create-user-form', 'user-manage-form']
+            .map(id => document.getElementById(id))
+            .filter(form => form?.elements.namedItem('faculty_id') && form?.elements.namedItem('department_id'));
+        if (!forms.length) return;
+
+        try {
+            await loadAccountFacultyDirectory();
+            forms.forEach(form => {
+                const faculty = form.elements.namedItem('faculty_id');
+                if (faculty.dataset.affiliationBound === 'true') return;
+                faculty.dataset.affiliationBound = 'true';
+                faculty.addEventListener('change', () => renderUserDepartmentOptions(form));
+                renderUserAffiliationOptions(form);
+            });
+        } catch (error) {
+            forms.forEach(form => {
+                const faculty = form.elements.namedItem('faculty_id');
+                const department = form.elements.namedItem('department_id');
+                faculty.innerHTML = `<option value="">${escapeHtml(t('admin.profile.directoryLoadError'))}</option>`;
+                department.innerHTML = `<option value="">${escapeHtml(t('admin.profile.selectFacultyFirst'))}</option>`;
+                faculty.disabled = true;
+                department.disabled = true;
+            });
+            console.warn('Unable to load faculty directory for user accounts.', error);
+        }
+    }
+
+    async function loadAccountFacultyDirectory() {
+        if (accountFacultyDirectory) return accountFacultyDirectory;
+        if (!accountFacultyDirectoryPromise) {
+            accountFacultyDirectoryPromise = fetch(`${api()}?endpoint=faculty-departments-list`, { credentials: 'same-origin' })
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || data.success === false || !Array.isArray(data.faculties)) {
+                        throw new Error(data.error || 'Faculty directory unavailable');
+                    }
+                    accountFacultyDirectory = data.faculties;
+                    return accountFacultyDirectory;
+                })
+                .catch(error => {
+                    accountFacultyDirectoryPromise = null;
+                    throw error;
+                });
+        }
+        return accountFacultyDirectoryPromise;
+    }
+
+    function renderUserAffiliationOptions(form, profile = {}) {
+        const facultySelect = form.elements.namedItem('faculty_id');
+        const departmentSelect = form.elements.namedItem('department_id');
+        const faculties = accountFacultyDirectory || [];
+        const activeFaculties = faculties.filter(item => item.is_active !== false);
+        const selectedFacultyId = String(profile.faculty_id || '');
+        const selectedFaculty = faculties.find(item => String(item.id) === selectedFacultyId);
+        const facultyOptions = activeFaculties.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`);
+        if (selectedFaculty && selectedFaculty.is_active === false) {
+            facultyOptions.push(`<option value="${escapeHtml(selectedFaculty.id)}">${escapeHtml(selectedFaculty.name)} (inactive)</option>`);
+        }
+        facultySelect.innerHTML = `<option value="">${escapeHtml(t('admin.profile.selectFaculty'))}</option>${facultyOptions.join('')}`;
+        facultySelect.value = selectedFacultyId && facultyOptions.length ? selectedFacultyId : '';
+        renderUserDepartmentOptions(form, profile.department_id, profile.department);
+    }
+
+    function renderUserDepartmentOptions(form, selectedDepartmentId = '', selectedDepartmentName = '') {
+        const facultySelect = form.elements.namedItem('faculty_id');
+        const departmentSelect = form.elements.namedItem('department_id');
+        const facultyId = String(facultySelect.value || '');
+        const faculty = (accountFacultyDirectory || []).find(item => String(item.id) === facultyId);
+        const departments = faculty?.departments || [];
+        const activeDepartments = departments.filter(item => item.is_active !== false);
+        const departmentOptions = activeDepartments.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`);
+        const selectedDepartment = departments.find(item => String(item.id) === String(selectedDepartmentId || ''));
+        if (selectedDepartment && selectedDepartment.is_active === false) {
+            departmentOptions.push(`<option value="${escapeHtml(selectedDepartment.id)}">${escapeHtml(selectedDepartmentName || selectedDepartment.name)} (inactive)</option>`);
+        }
+        departmentSelect.innerHTML = `<option value="">${escapeHtml(facultyId ? t('admin.profile.selectDepartment') : t('admin.profile.selectFacultyFirst'))}</option>${departmentOptions.join('')}`;
+        departmentSelect.disabled = !facultyId;
+        departmentSelect.value = String(selectedDepartmentId || '');
+    }
+
     function patchUserRenderer(panel) {
         panel.renderUsers = function (users) {
             this.users = users || [];
@@ -744,7 +840,8 @@
             if (!host) return;
             const roles = [...new Set(['student', 'instructor', ...this.users.map(item => String(item.role || 'other').toLowerCase())])];
             this.userGridState = this.userGridState || {};
-            host.innerHTML = roles.map(role => `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(role.charAt(0).toUpperCase() + role.slice(1))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by number, name, email…"></label></div><div class="table-responsive"><table class="table"><thead><tr><th>Student number</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`).join('');
+            host.innerHTML = roles.map(role => `<section class="role-user-grid" data-role-grid="${escapeHtml(role)}"><div class="role-grid-header"><div><h3>${escapeHtml(displayRole(role))} accounts</h3><span class="role-grid-count" id="role-count-${escapeHtml(role)}"></span></div><label class="smart-filter"><i class="fas fa-search"></i><input type="search" data-role-filter="${escapeHtml(role)}" placeholder="Filter ${escapeHtml(role)} by number, name, email…"></label></div>${roleImportPanelMarkup(role)}<div class="table-responsive"><table class="table"><thead><tr><th>${escapeHtml(displayRole(role))} number</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody id="role-body-${escapeHtml(role)}"></tbody></table></div><div class="pagination-controls" id="role-pages-${escapeHtml(role)}"></div></section>`).join('');
+            bindUserImport(this);
             roles.forEach(role => {
                 this.userGridState[role] = this.userGridState[role] || { page: 1, filter: '' };
                 const input = host.querySelector(`[data-role-filter="${CSS.escape(role)}"]`);
@@ -752,6 +849,28 @@
                 renderRoleGrid(this, role);
             });
         };
+    }
+
+    function roleImportPanelMarkup(role) {
+        const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+        const baseUrl = api();
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        const templateUrl = `${baseUrl}${separator}endpoint=user-import-template&role=${encodeURIComponent(role)}`;
+        const encodedRole = escapeHtml(role);
+        return `
+            <section class="role-user-import" aria-label="Import ${escapeHtml(roleLabel)} accounts">
+                <div class="role-user-import-heading">
+                    <strong>Import ${escapeHtml(roleLabel)} accounts</strong>
+                    <a class="btn btn-secondary btn-sm" href="${templateUrl}"><i class="fas fa-download" aria-hidden="true"></i> ${escapeHtml(roleLabel)} template</a>
+                </div>
+                <form class="user-import-actions role-user-import-form" data-user-import-form data-import-role="${encodedRole}" enctype="multipart/form-data">
+                    <input class="user-import-file-input" type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Choose an Excel file for ${escapeHtml(roleLabel)} accounts">
+                    <div class="user-import-mapping" data-import-mapping hidden></div>
+                    <button class="btn" type="submit" data-import-submit disabled><i class="fas fa-users" aria-hidden="true"></i> Import ${escapeHtml(roleLabel)} accounts</button>
+                    <p class="user-import-feedback" data-import-feedback aria-live="polite"></p>
+                    <ul class="user-import-errors" data-import-errors hidden aria-live="polite"></ul>
+                </form>
+            </section>`;
     }
 
     function renderRoleGrid(panel, role) {
@@ -891,7 +1010,7 @@
         const targetTitle = isAllRoles ? 'All roles' : (isAllUsers ? 'All users' : ([user.first_name, user.last_name].filter(Boolean).join(' ') || user?.username || 'Selected user'));
         const targetDetail = isAllRoles
             ? 'Shared defaults for every role in the portal.'
-            : (isAllUsers ? 'A common access policy for every user account.' : `${user.student_number || 'No student number'} · ${user.email} · current role: ${displayRole(user.role)}`);
+            : (isAllUsers ? 'A common access policy for every user account.' : `${user.student_number || `No ${displayRole(user.role).toLowerCase()} number`} · ${user.email} · current role: ${displayRole(user.role)}`);
         const saveButton = !isAllUsers && !isAllRoles ? '<button class="btn" data-save-role-access><i class="fas fa-save"></i> Save for this user</button>' : '';
         const roleButton = isAllRoles
             ? '<button class="btn" data-apply-all-roles><i class="fas fa-layer-group"></i> Apply to all roles</button>'
@@ -997,7 +1116,8 @@
 
     function showRoleFeedback(message, type) { const element = document.getElementById('role-access-feedback'); if (element) { element.textContent = message; element.className = `role-access-feedback ${type}`; } }
 
-    function showUserModal(panel, user) {
+    async function showUserModal(panel, user) {
+        try { await loadAccountFacultyDirectory(); } catch (_) { /* Keep account editing available when the directory is offline. */ }
         editingUserId = user ? user.id : null;
         document.getElementById('user-modal-title').textContent = editingUserId ? 'Edit User / Instructor' : 'Add User / Instructor';
         document.getElementById('user-id').value = user ? user.id : '';
@@ -1006,6 +1126,7 @@
         document.getElementById('user-role').value = user ? (user.role || 'student') : 'student';
         document.getElementById('user-password').value = '';
         document.getElementById('user-password').required = !editingUserId;
+        if (accountFacultyDirectory) renderUserAffiliationOptions(document.getElementById('user-manage-form'), user || {});
         document.getElementById('user-manage-modal').style.display = 'block';
     }
 
@@ -1022,7 +1143,9 @@
             current_admin_id: panel.currentAdmin.id,
             username: data.username,
             email: data.email,
-            role: data.role
+            role: data.role,
+            faculty_id: data.faculty_id,
+            department_id: data.department_id
         };
 
         let result;
@@ -1053,6 +1176,7 @@
         if (result.success) {
             panel.showNotification('Account created successfully', 'success');
             event.currentTarget.reset();
+            if (accountFacultyDirectory) renderUserAffiliationOptions(event.currentTarget);
             panel.loadUsers();
             panel.loadDashboardStats();
         } else {
@@ -1061,58 +1185,165 @@
     }
 
     function bindUserImport(panel) {
-        const form = document.getElementById('user-import-form');
-        const fileInput = document.getElementById('user-import-file');
-        const submit = document.getElementById('user-import-submit');
-        const fileName = document.getElementById('user-import-file-name');
-        const feedback = document.getElementById('user-import-feedback');
-        if (!form || !fileInput || !submit || !fileName || !feedback || form.dataset.bound === 'true') return;
+        document.querySelectorAll('[data-user-import-form]').forEach(form => {
+            if (form.dataset.bound === 'true') return;
+            const fileInput = form.querySelector('input[type="file"]');
+            const submit = form.querySelector('[data-import-submit]') || form.querySelector('button[type="submit"]');
+            const mappingHost = form.querySelector('[data-import-mapping]');
+            const feedback = form.querySelector('[data-import-feedback]');
+            const errorsHost = form.querySelector('[data-import-errors]');
+            const fileStatus = form.querySelector('.user-import-file-name');
+            if (!fileInput || !submit || !mappingHost || !feedback) return;
 
-        form.dataset.bound = 'true';
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files?.[0];
-            submit.disabled = !file;
-            fileName.textContent = file ? file.name : 'No file selected';
-            feedback.textContent = '';
-            feedback.className = 'user-import-feedback';
-        });
-        form.addEventListener('submit', async event => {
-            event.preventDefault();
-            const file = fileInput.files?.[0];
-            if (!file) return;
-
-            submit.disabled = true;
-            feedback.textContent = 'Importing users…';
-            feedback.className = 'user-import-feedback';
-            const data = new FormData();
-            data.append('action', 'user-import-upload');
-            data.append('file', file);
-
-            try {
-                const response = await fetch(api(), { method: 'POST', credentials: 'same-origin', body: data });
-                const result = await response.json();
-                if (!response.ok || result.success === false) {
-                    const details = Array.isArray(result.errors) && result.errors.length
-                        ? ` ${result.errors.slice(0, 3).join(' ')}`
-                        : '';
-                    throw new Error(`${result.error || 'Unable to import users.'}${details}`);
+            form.dataset.bound = 'true';
+            const fixedRole = String(form.dataset.importRole || '').trim().toLowerCase();
+            let previewSequence = 0;
+            const setFeedback = (message, state = '') => {
+                feedback.textContent = message;
+                feedback.className = `user-import-feedback${state ? ` ${state}` : ''}`;
+            };
+            const showImportErrors = errors => {
+                if (!errorsHost) return;
+                const messages = Array.isArray(errors) ? errors.filter(message => typeof message === 'string' && message.trim()) : [];
+                errorsHost.replaceChildren();
+                errorsHost.hidden = messages.length === 0;
+                messages.slice(0, 30).forEach(message => {
+                    const item = document.createElement('li');
+                    item.textContent = message;
+                    errorsHost.appendChild(item);
+                });
+                if (messages.length > 30) {
+                    const item = document.createElement('li');
+                    item.textContent = `${messages.length - 30} additional issue(s) not shown.`;
+                    errorsHost.appendChild(item);
                 }
+            };
+            const mappingIsValid = () => {
+                if (mappingHost.hidden) return false;
+                const requiredFields = fixedRole ? ['username', 'email', 'password'] : ['username', 'email', 'role', 'password'];
+                return requiredFields.every(field => mappingHost.querySelector(`[data-import-column="${field}"]`)?.value !== '');
+            };
+            const updateSubmitState = () => {
+                submit.disabled = !fileInput.files?.[0] || !mappingIsValid();
+            };
 
-                feedback.textContent = result.message || `${result.imported || 0} user account(s) imported.`;
-                feedback.className = 'user-import-feedback success';
-                panel.showNotification(feedback.textContent, 'success');
-                form.reset();
-                fileName.textContent = 'No file selected';
-                panel.loadUsers();
-                panel.loadDashboardStats();
-            } catch (error) {
-                feedback.textContent = error.message || 'Unable to import users.';
-                feedback.className = 'user-import-feedback error';
-                panel.showNotification('Unable to import users. Review the import details.', 'error');
-            } finally {
-                submit.disabled = !fileInput.files?.[0];
-            }
+            fileInput.addEventListener('change', async () => {
+                const previewId = ++previewSequence;
+                const file = fileInput.files?.[0];
+                if (fileStatus) fileStatus.textContent = file ? `Selected ${file.name}` : '';
+                mappingHost.innerHTML = '';
+                mappingHost.hidden = true;
+                showImportErrors([]);
+                updateSubmitState();
+                setFeedback('');
+                if (!file) return;
+
+                setFeedback('Reading workbook columns…');
+                const preview = new FormData();
+                preview.append('action', 'user-import-preview');
+                preview.append('file', file);
+                try {
+                    const response = await fetch(api(), { method: 'POST', credentials: 'same-origin', body: preview });
+                    const result = await response.json();
+                    if (previewId !== previewSequence) return;
+                    if (!response.ok || result.success === false) throw new Error(result.error || 'Unable to read workbook columns.');
+                    if (!Array.isArray(result.headers) || result.headers.length === 0) throw new Error('The workbook has no column headings in its first row.');
+
+                    renderUserImportColumnMapping(mappingHost, result.headers, fixedRole);
+                    mappingHost.hidden = false;
+                    mappingHost.querySelectorAll('select').forEach(select => select.addEventListener('change', updateSubmitState));
+                    setFeedback(`${result.rows || 0} data row(s) found. Confirm the column mapping before importing.`);
+                    updateSubmitState();
+                } catch (error) {
+                    if (previewId !== previewSequence) return;
+                    setFeedback(error.message || 'Unable to read workbook columns.', 'error');
+                }
+            });
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const file = fileInput.files?.[0];
+                if (!file || !mappingIsValid()) return;
+
+                submit.disabled = true;
+                showImportErrors([]);
+                setFeedback('Importing users…');
+                const mapping = {};
+                mappingHost.querySelectorAll('[data-import-column]').forEach(select => {
+                    mapping[select.dataset.importColumn] = select.value === '' ? -1 : Number(select.value);
+                });
+                const data = new FormData();
+                data.append('action', 'user-import-upload');
+                data.append('file', file);
+                data.append('mapping', JSON.stringify(mapping));
+                if (fixedRole) data.append('role', fixedRole);
+
+                try {
+                    const response = await fetch(api(), { method: 'POST', credentials: 'same-origin', body: data });
+                    const result = await response.json();
+                    if (!response.ok || result.success === false) {
+                        showImportErrors(result.errors);
+                        setFeedback(result.error || 'No users were imported. Review the row-by-row issues below.', 'error');
+                        panel.showNotification('Import failed. Resolve the listed conflicts or errors, then try again.', 'error');
+                        return;
+                    }
+
+                    showImportErrors(result.errors);
+                    const hasSkippedRows = Number(result.skipped || 0) > 0;
+                    setFeedback(result.message || `${result.imported || 0} user account(s) imported.${hasSkippedRows ? ` ${result.skipped} row(s) skipped; see details below.` : ''}`, hasSkippedRows ? 'warning' : 'success');
+                    panel.showNotification(feedback.textContent, hasSkippedRows ? 'warning' : 'success');
+                    form.reset();
+                    mappingHost.innerHTML = '';
+                    mappingHost.hidden = true;
+                    if (fileStatus) fileStatus.textContent = '';
+                    panel.loadUsers();
+                    panel.loadDashboardStats();
+                } catch (error) {
+                    setFeedback(error.message || 'Unable to import users.', 'error');
+                    panel.showNotification('Unable to import users. Review the import details.', 'error');
+                } finally {
+                    updateSubmitState();
+                }
+            });
         });
+    }
+
+    function renderUserImportColumnMapping(host, headers, fixedRole) {
+        const fields = [
+            { key: 'username', label: 'Username', aliases: ['username', 'user name', 'login', 'login name'], required: true },
+            { key: 'email', label: 'Email', aliases: ['email', 'email address'], required: true },
+            { key: 'role', label: 'Role', aliases: ['role', 'user role', 'account type'], required: !fixedRole },
+            { key: 'password', label: 'Password', aliases: ['password', 'temporary password', 'temp password'], required: true },
+            { key: 'faculty', label: 'Faculty', aliases: ['faculty', 'faculty name'], required: false },
+            { key: 'department', label: 'Department', aliases: ['department', 'department name', 'program'], required: false }
+        ];
+        const normalizedHeaders = headers.map(header => normalizeImportHeader(header));
+        const fieldsMarkup = fields.filter(field => !fixedRole || field.key !== 'role').map(field => {
+            const selectedIndex = normalizedHeaders.findIndex(header => field.aliases.some(alias => header === normalizeImportHeader(alias)));
+            const options = headers.map((header, index) => `<option value="${index}" ${index === selectedIndex ? 'selected' : ''}>${escapeHtml(header || `Column ${index + 1}`)}</option>`).join('');
+            return `
+                <label class="user-import-map-field">
+                    <span>${escapeHtml(field.label)}${field.required ? ' <em>Required</em>' : ' <small>Optional</small>'}</span>
+                    <select data-import-column="${field.key}" ${field.required ? 'required' : ''}>
+                        <option value="">${field.required ? 'Choose a column' : 'Do not import'}</option>
+                        ${options}
+                    </select>
+                </label>`;
+        }).join('');
+        const roleNote = fixedRole
+            ? `<p class="user-import-role-note">This card assigns the <strong>${escapeHtml(displayRole(fixedRole))}</strong> role to every imported account.</p>`
+            : '';
+        host.innerHTML = `
+            <div class="user-import-mapping-heading">
+                <strong>Map workbook columns</strong>
+                <span>Select the source column for each account field.</span>
+            </div>
+            ${roleNote}
+            <div class="user-import-mapping-grid">${fieldsMarkup}</div>`;
+    }
+
+    function normalizeImportHeader(value) {
+        return String(value || '').toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
     async function postJson(payload) {
@@ -1143,7 +1374,7 @@
         editUser(id) {
             const panel = window.adminPanel;
             const user = panel && panel.users ? panel.users.find(item => item.id === id) : null;
-            if (user) showUserModal(panel, user);
+            if (user) void showUserModal(panel, user);
         },
         async deleteUser(id) {
             const panel = window.adminPanel;

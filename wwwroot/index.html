@@ -104,9 +104,9 @@
             body.user-portal .user-dropdown-content { flex-wrap: wrap; justify-content: flex-start; }
         }
     </style>
-    <link rel="stylesheet" href="/css/design-fixes.css?v=39">
+    <link rel="stylesheet" href="/css/design-fixes.css?v=40">
     <link rel="stylesheet" href="/css/dashboard-refined.css?v=5">
-    <link rel="stylesheet" href="/css/portal-upgrades.css?v=20">
+    <link rel="stylesheet" href="/css/portal-upgrades.css?v=21">
     <!--<style>
     
      * Responsive mobile adjustments
@@ -352,8 +352,8 @@
                     <label><span data-i18n="profile.firstName">First name</span><input id="profile-page-first_name" name="first_name"></label>
                     <label><span data-i18n="profile.surname">Surname</span><input id="profile-page-last_name" name="last_name"></label>
                     <label><span>Email</span><input id="profile-page-email" name="email" type="email" inputmode="email" autocomplete="email" pattern="^[^@\s]+@final\.edu\.tr$" title="Use your @final.edu.tr email address" required></label>
-                    <label><span data-i18n="profile.faculty">Faculty</span><select id="profile-page-faculty" name="faculty" autocomplete="organization"><option value="" data-i18n="profile.loadingFaculties">Loading faculties…</option></select></label>
-                    <label><span data-i18n="profile.department">Department</span><select id="profile-page-department" name="department"><option value="" data-i18n="profile.chooseFaculty">Choose a faculty first</option></select></label>
+                    <label><span data-i18n="profile.faculty">Faculty</span><select id="profile-page-faculty" name="faculty" autocomplete="organization" disabled><option value="" data-i18n="profile.loadingFaculties">Loading faculties…</option></select></label>
+                    <label><span data-i18n="profile.department">Department</span><select id="profile-page-department" name="department" disabled><option value="" data-i18n="profile.chooseFaculty">Choose a faculty first</option></select></label>
                     <button class="btn btn-primary" type="submit" data-i18n="profile.save">Save profile</button>
                 </form>
                 <div class="profile-page-password">
@@ -397,7 +397,7 @@
     <script src="/js/language.js?v=15"></script>
     <script src="/js/portal-i18n-catalog.js?v=2"></script>
     <script src="/js/session-timeout.js?v=1"></script>
-    <script src="/js/main.js?v=60"></script>
+    <script src="/js/main.js?v=62"></script>
     <script src="/js/user_admin_link.js?v=3"></script>
     <script src="/js/tour.js?v=13"></script>
     <script src="/js/login.js?v=9"></script>

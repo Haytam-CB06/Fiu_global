@@ -583,7 +583,7 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
             "holiday-export" => HandleHolidayExport(request, store),
             "holiday-template" => HandleHolidayTemplate(request),
             "user-import-template" => existingSession.IsSuperAdmin
-                ? HandleUserImportTemplate(store)
+                ? HandleUserImportTemplate(request, store)
                 : Results.StatusCode(StatusCodes.Status403Forbidden),
             "dining-menu-template" => HandleDiningMenuTemplate(),
             "dining-menu-export" => HandleDiningMenuExport(request, store),
@@ -605,6 +605,11 @@ app.MapMethods("/database/admin_api.php", new[] { "GET", "POST" }, async (HttpRe
 
         var form = await request.ReadFormAsync();
         var formAction = form["action"].ToString();
+        if (formAction == "user-import-preview")
+        {
+            if (!existingSession.IsSuperAdmin) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            return HandleUserImportPreview(form);
+        }
         if (formAction == "user-import-upload")
         {
             if (!existingSession.IsSuperAdmin) return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -1102,15 +1107,32 @@ static IResult HandleHolidayTemplate(HttpRequest request)
         $"holiday_template_{year}.xlsx");
 }
 
-static IResult HandleUserImportTemplate(AppDataStore store)
+static IResult HandleUserImportTemplate(HttpRequest request, AppDataStore store)
 {
+    var availableRoles = store.GetAvailableUserRoles();
+    var requestedRole = request.Query["role"].ToString().Trim();
+    if (!string.IsNullOrWhiteSpace(requestedRole))
+    {
+        var matchingRole = availableRoles.FirstOrDefault(role => role.Equals(requestedRole, StringComparison.OrdinalIgnoreCase));
+        if (matchingRole is null)
+        {
+            return Results.BadRequest(new { success = false, error = "Choose a role that is available in the portal." });
+        }
+
+        var safeRole = string.Concat(matchingRole.Select(character => char.IsLetterOrDigit(character) ? character : '_'));
+        return Results.File(
+            BuildUserImportTemplateWorkbook([matchingRole], matchingRole),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"user_import_template_{safeRole}.xlsx");
+    }
+
     return Results.File(
-        BuildUserImportTemplateWorkbook(store.GetAvailableUserRoles()),
+        BuildUserImportTemplateWorkbook(availableRoles),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "user_import_template.xlsx");
 }
 
-static byte[] BuildUserImportTemplateWorkbook(IReadOnlyCollection<string> roles)
+static byte[] BuildUserImportTemplateWorkbook(IReadOnlyCollection<string> roles, string? fixedRole = null)
 {
     var roleList = roles.Where(role => !string.IsNullOrWhiteSpace(role)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     if (roleList.Count == 0) roleList = ["student", "instructor"];
@@ -1138,12 +1160,22 @@ static byte[] BuildUserImportTemplateWorkbook(IReadOnlyCollection<string> roles)
         var usersSheet = new StringBuilder()
             .Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
             .Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
-            .Append("<dimension ref=\"A1:D501\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols>")
-            .Append("<col min=\"1\" max=\"1\" width=\"26\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"36\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"24\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"28\" customWidth=\"1\"/>")
+            .Append("<dimension ref=\"A1:F501\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols>")
+            .Append("<col min=\"1\" max=\"1\" width=\"26\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"36\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"18\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"28\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"42\" customWidth=\"1\"/><col min=\"6\" max=\"6\" width=\"42\" customWidth=\"1\"/>")
             .Append("</cols><sheetData><row r=\"1\">");
-        var headers = new[] { "Username", "Email", "Role", "Password" };
+        var headers = new[] { "Username", "Email", "Role", "Password", "Faculty", "Department" };
         for (var column = 0; column < headers.Length; column++) AppendInlineStringCell(usersSheet, column, 1, headers[column]);
-        usersSheet.Append("</row></sheetData><autoFilter ref=\"A1:D1\"/><dataValidations count=\"1\"><dataValidation type=\"list\" allowBlank=\"1\" showErrorMessage=\"1\" showInputMessage=\"1\" errorTitle=\"Invalid role\" error=\"Choose a role from the list.\" promptTitle=\"Role\" prompt=\"Choose an existing portal role.\" sqref=\"C2:C501\"><formula1>UserRoles</formula1></dataValidation></dataValidations></worksheet>");
+        usersSheet.Append("</row>");
+        if (!string.IsNullOrWhiteSpace(fixedRole))
+        {
+            for (var rowNumber = 2; rowNumber <= 501; rowNumber++)
+            {
+                usersSheet.Append($"<row r=\"{rowNumber}\">");
+                AppendInlineStringCell(usersSheet, 2, rowNumber, fixedRole);
+                usersSheet.Append("</row>");
+            }
+        }
+        usersSheet.Append("</sheetData><autoFilter ref=\"A1:F501\"/><dataValidations count=\"1\"><dataValidation type=\"list\" allowBlank=\"1\" showErrorMessage=\"1\" showInputMessage=\"1\" errorTitle=\"Invalid role\" error=\"Choose a role from the list.\" promptTitle=\"Role\" prompt=\"Choose an existing portal role.\" sqref=\"C2:C501\"><formula1>UserRoles</formula1></dataValidation></dataValidations></worksheet>");
         AddZipEntry(archive, "xl/worksheets/sheet1.xml", usersSheet.ToString());
 
         var rolesSheet = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
@@ -1733,6 +1765,49 @@ static async Task<(List<HolidayCsvRow> Rows, List<string> Errors)> ReadHolidayRo
 static bool IsWeekdayName(string value) =>
     Enum.TryParse<DayOfWeek>(value?.Trim(), ignoreCase: true, out _);
 
+static IResult HandleUserImportPreview(IFormCollection form)
+{
+    var file = form.Files["file"];
+    if (file is null || file.Length == 0)
+    {
+        return Results.BadRequest(new { success = false, error = "Choose an Excel (.xlsx) file." });
+    }
+    if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.BadRequest(new { success = false, error = "Only Excel (.xlsx) files are supported for user imports." });
+    }
+    if (file.Length > 5 * 1024 * 1024)
+    {
+        return Results.BadRequest(new { success = false, error = "The Excel file is larger than 5MB." });
+    }
+
+    List<List<string>> worksheetRows;
+    try
+    {
+        worksheetRows = ReadSimpleRowsFromXlsx(file, includeHeader: true);
+    }
+    catch (Exception)
+    {
+        return Results.BadRequest(new { success = false, error = "The Excel file could not be read. Use the downloaded template." });
+    }
+
+    if (worksheetRows.Count == 0 || worksheetRows[0].All(string.IsNullOrWhiteSpace))
+    {
+        return Results.BadRequest(new { success = false, error = "The workbook's first row must contain column headings." });
+    }
+    if (worksheetRows[0].Count > 100)
+    {
+        return Results.BadRequest(new { success = false, error = "The workbook contains too many columns to map." });
+    }
+
+    var headers = worksheetRows[0].Select(value => value.Trim()).ToList();
+    var roleColumn = headers.FindIndex(header => header.Equals("Role", StringComparison.OrdinalIgnoreCase));
+    var dataRowCount = worksheetRows.Skip(1).Count(row => row
+        .Where((_, index) => index != roleColumn)
+        .Any(value => !string.IsNullOrWhiteSpace(value)));
+    return Results.Json(new { success = true, headers, rows = dataRowCount });
+}
+
 static IResult HandleUserImportUpload(IFormCollection form, AppDataStore store)
 {
     var file = form.Files["file"];
@@ -1752,37 +1827,108 @@ static IResult HandleUserImportUpload(IFormCollection form, AppDataStore store)
     List<List<string>> worksheetRows;
     try
     {
-        worksheetRows = ReadSimpleRowsFromXlsx(file);
+        worksheetRows = ReadSimpleRowsFromXlsx(file, includeHeader: true);
     }
     catch (Exception)
     {
         return Results.BadRequest(new { success = false, error = "The Excel file could not be read. Use the downloaded template." });
     }
 
-    var rows = new List<UserImportRow>();
-    var errors = new List<string>();
-    for (var index = 0; index < worksheetRows.Count; index++)
+    if (worksheetRows.Count < 2 || worksheetRows[0].All(string.IsNullOrWhiteSpace))
     {
-        var values = worksheetRows[index];
-        if (values.All(string.IsNullOrWhiteSpace)) continue;
-        if (values.Count < 4)
-        {
-            errors.Add($"Row {index + 2}: expected Username, Email, Role, and Password.");
-            continue;
-        }
-
-        rows.Add(new UserImportRow(values[0], values[1], values[2], values[3]));
+        return Results.BadRequest(new { success = false, error = "The workbook must have a heading row and at least one user row." });
     }
 
-    if (errors.Count > 0)
+    var headers = worksheetRows[0].Select(value => value.Trim()).ToList();
+    var fixedRole = form["role"].ToString().Trim();
+    var columnMap = ParseUserImportColumnMap(form["mapping"].ToString(), headers);
+    if (columnMap is null || (string.IsNullOrWhiteSpace(fixedRole) &&
+        (!columnMap.TryGetValue("role", out var roleIndex) || roleIndex < 0 || roleIndex >= headers.Count)))
     {
-        return Results.BadRequest(new { success = false, error = "The workbook has invalid rows.", errors });
+        return Results.BadRequest(new { success = false, error = "Map the Username, Email, and Password columns before importing. Map Role too unless you are importing from a role card." });
+    }
+
+    if (!string.IsNullOrWhiteSpace(fixedRole) && !store.GetAvailableUserRoles().Contains(fixedRole, StringComparer.OrdinalIgnoreCase))
+    {
+        return Results.BadRequest(new { success = false, error = "The selected role is no longer available." });
+    }
+
+    var rows = new List<UserImportRow>();
+    for (var index = 1; index < worksheetRows.Count; index++)
+    {
+        var values = worksheetRows[index];
+        var role = string.IsNullOrWhiteSpace(fixedRole)
+            ? GetMappedUserImportValue(values, columnMap, "role")
+            : fixedRole;
+        var username = GetMappedUserImportValue(values, columnMap, "username");
+        var email = GetMappedUserImportValue(values, columnMap, "email");
+        var password = GetMappedUserImportValue(values, columnMap, "password");
+        var faculty = GetMappedUserImportValue(values, columnMap, "faculty");
+        var department = GetMappedUserImportValue(values, columnMap, "department");
+        var hasUserData = new[] { username, email, password, faculty, department }.Any(value => !string.IsNullOrWhiteSpace(value)) ||
+            (string.IsNullOrWhiteSpace(fixedRole) && !string.IsNullOrWhiteSpace(role));
+        if (!hasUserData) continue;
+
+        rows.Add(new UserImportRow(
+            username,
+            email,
+            role,
+            password,
+            faculty,
+            department,
+            index + 1));
     }
 
     var result = store.ImportUsers(rows);
     return result.Success
-        ? Results.Json(new { success = true, imported = result.Imported, message = $"{result.Imported} user account(s) imported." })
+        ? Results.Json(new
+        {
+            success = true,
+            imported = result.Imported,
+            skipped = result.Skipped,
+            errors = result.Errors,
+            message = result.Skipped > 0
+                ? $"{result.Imported} user account(s) imported; {result.Skipped} row(s) skipped. Review the issues below."
+                : $"{result.Imported} user account(s) imported."
+        })
         : Results.BadRequest(new { success = false, error = "No users were imported.", errors = result.Errors });
+}
+
+static Dictionary<string, int>? ParseUserImportColumnMap(string serializedMap, IReadOnlyList<string> headers)
+{
+    if (string.IsNullOrWhiteSpace(serializedMap)) return null;
+    Dictionary<string, int>? parsed;
+    try
+    {
+        parsed = JsonSerializer.Deserialize<Dictionary<string, int>>(serializedMap);
+    }
+    catch (JsonException)
+    {
+        return null;
+    }
+    if (parsed is null) return null;
+
+    var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    foreach (var item in parsed)
+    {
+        var key = item.Key.Trim().ToLowerInvariant();
+        if (!map.TryAdd(key, item.Value)) return null;
+    }
+    var fixedRole = map.GetValueOrDefault("role", -1);
+    foreach (var field in new[] { "username", "email", "password" })
+    {
+        if (!map.TryGetValue(field, out var index) || index < 0 || index >= headers.Count) return null;
+    }
+    if (fixedRole >= headers.Count) return null;
+    if (map.TryGetValue("faculty", out var facultyIndex) && (facultyIndex < -1 || facultyIndex >= headers.Count)) return null;
+    if (map.TryGetValue("department", out var departmentIndex) && (departmentIndex < -1 || departmentIndex >= headers.Count)) return null;
+    return map;
+}
+
+static string GetMappedUserImportValue(IReadOnlyList<string> values, IReadOnlyDictionary<string, int> map, string field)
+{
+    if (!map.TryGetValue(field, out var index) || index < 0 || index >= values.Count) return string.Empty;
+    return values[index].Trim();
 }
 
 static async Task<IResult> HandleDiningMenuUpload(IFormCollection form, AppDataStore store)
@@ -2023,7 +2169,9 @@ static IResult HandleUserCreate(Dictionary<string, object?> body, AppDataStore s
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var result = store.CreateUser(body.GetString("username"), body.GetString("email"), body.GetString("password"), body.GetString("role", "student"));
+    int? facultyId = body.ContainsKey("faculty_id") ? body.GetInt("faculty_id") : null;
+    int? departmentId = body.ContainsKey("department_id") ? body.GetInt("department_id") : null;
+    var result = store.CreateUser(body.GetString("username"), body.GetString("email"), body.GetString("password"), body.GetString("role", "student"), facultyId, departmentId);
     return result.Success
         ? Results.Json(new { success = true, message = "User created successfully" })
         : Results.BadRequest(new { error = result.Error });
@@ -2036,7 +2184,9 @@ static IResult HandleUserUpdate(Dictionary<string, object?> body, AppDataStore s
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var result = store.UpdateUser(body.GetInt("id"), body.GetString("username"), body.GetString("email"), body.GetString("role", "student"));
+    int? facultyId = body.ContainsKey("faculty_id") ? body.GetInt("faculty_id") : null;
+    int? departmentId = body.ContainsKey("department_id") ? body.GetInt("department_id") : null;
+    var result = store.UpdateUser(body.GetInt("id"), body.GetString("username"), body.GetString("email"), body.GetString("role", "student"), facultyId, departmentId);
     return result.Success
         ? Results.Json(new { success = true, message = "User updated successfully" })
         : Results.BadRequest(new { error = result.Error });
@@ -2935,7 +3085,7 @@ static List<DiningMenuImportRow> ReadDiningRowsFromXlsx(IFormFile file)
     return rows;
 }
 
-static List<List<string>> ReadSimpleRowsFromXlsx(IFormFile file)
+static List<List<string>> ReadSimpleRowsFromXlsx(IFormFile file, bool includeHeader = false)
 {
     using var archive = new ZipArchive(file.OpenReadStream(), ZipArchiveMode.Read);
     var sharedStrings = archive.GetEntry("xl/sharedStrings.xml") is { } sharedEntry
@@ -2944,13 +3094,46 @@ static List<List<string>> ReadSimpleRowsFromXlsx(IFormFile file)
     var sheetEntry = archive.GetEntry("xl/worksheets/sheet1.xml");
     if (sheetEntry is null) return [];
     var sheet = XDocument.Load(sheetEntry.Open());
-    return sheet.Descendants().Where(node => node.Name.LocalName == "row").Skip(1).Select(row => row.Elements().Where(node => node.Name.LocalName == "c").Select(cell =>
+    var rows = sheet.Descendants().Where(node => node.Name.LocalName == "row").Select(row =>
     {
-        var type = cell.Attribute("t")?.Value;
-        if (type == "inlineStr") return string.Concat(cell.Descendants().Where(node => node.Name.LocalName == "t").Select(node => node.Value));
-        var raw = cell.Elements().FirstOrDefault(node => node.Name.LocalName == "v")?.Value ?? string.Empty;
-        return type == "s" && int.TryParse(raw, out var index) && index >= 0 && index < sharedStrings.Count ? sharedStrings[index] : raw;
-    }).ToList()).ToList();
+        var cells = new SortedDictionary<int, string>();
+        var fallbackColumn = 0;
+        foreach (var cell in row.Elements().Where(node => node.Name.LocalName == "c"))
+        {
+            var column = ParseExcelColumnIndex(cell.Attribute("r")?.Value, fallbackColumn);
+            fallbackColumn = column + 1;
+            var type = cell.Attribute("t")?.Value;
+            var value = type == "inlineStr"
+                ? string.Concat(cell.Descendants().Where(node => node.Name.LocalName == "t").Select(node => node.Value))
+                : cell.Elements().FirstOrDefault(node => node.Name.LocalName == "v")?.Value ?? string.Empty;
+            if (type == "s" && int.TryParse(value, out var sharedStringIndex) && sharedStringIndex >= 0 && sharedStringIndex < sharedStrings.Count)
+            {
+                value = sharedStrings[sharedStringIndex];
+            }
+            cells[column] = value;
+        }
+
+        var lastColumn = cells.Count == 0 ? -1 : cells.Keys.Max();
+        return Enumerable.Range(0, lastColumn + 1)
+            .Select(column => cells.GetValueOrDefault(column, string.Empty))
+            .ToList();
+    }).ToList();
+
+    return includeHeader ? rows : rows.Skip(1).ToList();
+}
+
+static int ParseExcelColumnIndex(string? cellReference, int fallback)
+{
+    if (string.IsNullOrWhiteSpace(cellReference)) return fallback;
+    var column = 0;
+    var foundLetter = false;
+    foreach (var character in cellReference)
+    {
+        if (!char.IsLetter(character)) break;
+        foundLetter = true;
+        column = (column * 26) + (char.ToUpperInvariant(character) - 'A' + 1);
+    }
+    return foundLetter ? column - 1 : fallback;
 }
 
 static object ToHolidayDto(HolidayItem holiday) => new

@@ -122,7 +122,7 @@
                     <div class="faculty-directory-card-heading"><i class="fas fa-building-columns" aria-hidden="true"></i><div><span>Faculty</span><strong>${escapeHtml(faculty.name)}</strong></div></div>
                     <label>Name<input name="name" maxlength="180" value="${escapeAttribute(faculty.name)}" required></label>
                     <label class="faculty-directory-toggle"><input name="is_active" type="checkbox" ${faculty.is_active === false ? '' : 'checked'}><span>Available in profiles</span></label>
-                    <div class="faculty-directory-actions"><button class="btn btn-secondary" type="submit"><i class="fas fa-save"></i> Save</button><button class="btn faculty-directory-danger" type="button" data-delete="faculty" data-id="${Number(faculty.id)}"><i class="fas fa-trash"></i> Delete</button></div>
+                    <div class="faculty-directory-actions"><button class="btn faculty-directory-save" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Save</button><button class="btn faculty-directory-danger" type="button" data-delete="faculty" data-id="${Number(faculty.id)}"><i class="fas fa-trash" aria-hidden="true"></i> Delete</button></div>
                 </form>
                 <div class="faculty-department-list"><div class="faculty-department-heading"><h4>Departments</h4><span>${departments.length}</span></div>
                     ${departments.length ? departments.map(department => renderDepartment(department)).join('') : '<p class="faculty-directory-empty">No departments yet.</p>'}
@@ -145,13 +145,14 @@
 
     function renderDepartment(department) {
         return `<form class="faculty-department-row ${department.is_active === false ? 'is-inactive' : ''}" data-directory-form="department" data-id="${Number(department.id)}">
+            <div class="faculty-department-card-heading"><span class="faculty-department-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span>Department</span></div>
             <label class="faculty-department-name"><span>Department name</span><input name="name" aria-label="Department name" value="${escapeAttribute(department.name)}" maxlength="180" required></label>
             <input name="faculty_id" type="hidden" value="${Number(department.faculty_id)}">
             <div class="faculty-department-controls">
                 <label class="faculty-directory-toggle"><input name="is_active" type="checkbox" ${department.is_active === false ? '' : 'checked'}><span>Active</span></label>
                 <div class="faculty-department-actions">
-                    <button class="btn btn-secondary" type="submit" title="Save department"><i class="fas fa-save"></i><span class="sr-only">Save department</span></button>
-                    <button class="btn faculty-directory-danger" type="button" data-delete="department" data-id="${Number(department.id)}" title="Delete department"><i class="fas fa-trash"></i><span class="sr-only">Delete department</span></button>
+                    <button class="btn faculty-directory-save" type="submit" title="Save department"><i class="fas fa-save" aria-hidden="true"></i><span>Save</span></button>
+                    <button class="btn faculty-directory-danger" type="button" data-delete="department" data-id="${Number(department.id)}" title="Delete department"><i class="fas fa-trash" aria-hidden="true"></i><span>Delete</span></button>
                 </div>
             </div>
         </form>`;

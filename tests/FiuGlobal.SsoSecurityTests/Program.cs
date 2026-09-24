@@ -38,6 +38,46 @@ Check(!PlatformSsoPolicy.IsFinalUniversityEmail("student@example.edu"), "wrong e
 var missingAccount = SsoErrorCatalog.Resolve("missing_platform_account");
 Check(missingAccount.StatusCode == 403 && missingAccount.Code == "missing_platform_account", "missing platform account error");
 
+// Platform visibility is an administrator-configured ceiling, including when
+// per-user platform access explicitly grants a platform to a hidden role.
+foreach (var key in new[] { "DB_CONNECTION_STRING", "DB_HOST", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD", "DB_PORT" })
+{
+    Environment.SetEnvironmentVariable(key, null);
+}
+var platformStore = new AppDataStore(null!, new LocalizationService());
+Check(!platformStore.IsDatabaseAvailable, "platform visibility checks use isolated in-memory state");
+Check(platformStore.CreatePlatform("Campus", "AIS", "https://ais.final.edu.tr/", "Academic Information System", null, ["student", "instructor"]), "AIS test platform created");
+var ais = platformStore.GetPlatforms().SingleOrDefault(platform => platform.Name == "AIS");
+Check(ais is not null, "admin catalog includes AIS");
+if (ais is not null)
+{
+    Check(platformStore.UpdatePlatform(ais.Id, "Campus", ais.Name, ais.Url, ais.Description, null, []), "AIS can be saved with no visible roles");
+    Check(!platformStore.GetPlatforms("instructor").Any(platform => platform.Name == "AIS"), "empty AIS visibility denies instructors");
+    Check(!platformStore.GetPlatforms("student").Any(platform => platform.Name == "AIS"), "empty AIS visibility denies students");
+    Check(platformStore.UpdatePlatform(ais.Id, "Campus", ais.Name, ais.Url, ais.Description, null, ["Instructor"]), "AIS role visibility update succeeds");
+}
+Check(platformStore.GetPlatforms("instructor").Any(platform => platform.Name == "AIS"), "instructor role sees AIS");
+Check(!platformStore.GetPlatforms("student").Any(platform => platform.Name == "AIS"), "student role does not see AIS");
+
+var instructor = platformStore.CreateUser("test-instructor", "test-instructor@example.test", "temporary-test-password", "instructor");
+var student = platformStore.CreateUser("test-student", "test-student@example.test", "temporary-test-password", "student");
+Check(instructor.Success && student.Success, "isolated instructor and student accounts created");
+var userAccess = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase) { ["AIS"] = true };
+var testUserIds = platformStore.GetUserRoleAccess().ToDictionary(
+    row => (string)row.GetType().GetProperty("username")!.GetValue(row)!,
+    row => (int)row.GetType().GetProperty("id")!.GetValue(row)!,
+    StringComparer.OrdinalIgnoreCase);
+if (testUserIds.TryGetValue("test-instructor", out var instructorId))
+{
+    Check(platformStore.UpdateUserRoleAccess(instructorId, "instructor", ["platforms"], userAccess), "instructor per-user AIS override saved");
+    Check(platformStore.GetPlatformsForUser(instructorId).Any(platform => platform.Name == "AIS"), "instructor user sees AIS");
+}
+if (testUserIds.TryGetValue("test-student", out var studentId))
+{
+    Check(platformStore.UpdateUserRoleAccess(studentId, "student", ["platforms"], userAccess), "student per-user AIS override saved");
+    Check(!platformStore.GetPlatformsForUser(studentId).Any(platform => platform.Name == "AIS"), "student override cannot bypass AIS role visibility");
+}
+
 if (failures.Count == 0)
 {
     Console.WriteLine("SSO security checks passed.");

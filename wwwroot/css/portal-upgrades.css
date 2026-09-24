@@ -2219,3 +2219,11 @@ body.archive-page > header {
         display: none !important;
     }
 }
+
+/* Keep the shared student/instructor header in view on every routed section.
+   This final rule overrides legacy responsive rules that reset it to static. */
+body.user-portal > header {
+    position: sticky !important;
+    top: 8px !important;
+    z-index: 300 !important;
+}

@@ -434,6 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function hydrateProfileEducationFields(profile = {}) {
         const facultyValue = String(profile.faculty || '').trim();
         const departmentValue = String(profile.department || '').trim();
+        const canEditAffiliation = String(profile.role || '').toLowerCase() === 'instructor';
         try {
             const directory = await loadEducationDirectory();
             populateFacultySelect(directory, facultyValue);
@@ -442,6 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
             populateFacultySelect(null, facultyValue);
             populateDepartmentSelect(facultyValue, departmentValue, null);
         }
+        const faculty = document.getElementById('profile-page-faculty');
+        const department = document.getElementById('profile-page-department');
+        if (faculty) faculty.disabled = faculty.disabled || !canEditAffiliation;
+        if (department) department.disabled = department.disabled || !canEditAffiliation;
     }
 
     async function loadEducationDirectory() {
@@ -1763,11 +1768,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log('Platforms data received:', data);
                 if (data.success && data.platforms && data.platforms.length > 0) {
-                    console.log('Creating platform cards for:', data.platforms.length, 'platforms');
-                    
-                    const filteredPlatforms = data.platforms;
+                    const filteredPlatforms = data.platforms.filter(platform => isPlatformVisibleToRole(platform, user?.role));
+                    console.log('Creating platform cards for role-visible platforms:', filteredPlatforms.length);
                     platformCatalog = filteredPlatforms;
-                    
                     if (filteredPlatforms.length > 0) {
                         renderPlatformSections(filteredPlatforms);
                         renderMostAccessedPlatforms();
@@ -1787,6 +1790,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 elements.platformsContainer.innerHTML = `<p>${portalT('announcements.error', 'Error loading platforms.')}</p>`;
                 renderMostAccessedPlatforms();
             });
+    }
+
+    function normalizePlatformRole(role) {
+        return String(role || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_]+/g, '-')
+            .replace(/[^a-z0-9-]/g, '');
+    }
+
+    function isPlatformVisibleToRole(platform, role) {
+        const normalizedRole = normalizePlatformRole(role);
+        const configuredRoles = platform?.visible_to_roles ?? platform?.visibleToRoles ?? platform?.VisibleToRoles;
+        return Boolean(normalizedRole && Array.isArray(configuredRoles) && configuredRoles.some(visibleRole => normalizePlatformRole(visibleRole) === normalizedRole));
     }
 
     async function loadMostAccessedPlatforms() {
@@ -1847,6 +1864,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         section.classList.remove('hidden');
         list.replaceChildren();
+        const visiblePlatforms = mostAccessedPlatforms
+            .map(resolveMostAccessedPlatform)
+            .filter(platform => isPlatformVisibleToRole(platform, user.role));
 
         if (mostAccessedLoadState === 'loading') {
             copy.textContent = portalT('platforms.loadingCopy', 'Loading the campus services you use most.');
@@ -1860,14 +1880,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (mostAccessedLoadState === 'empty' || !mostAccessedPlatforms.length) {
+        if (mostAccessedLoadState === 'empty' || !visiblePlatforms.length) {
             copy.textContent = portalT('platforms.mostAccessedEmpty', 'Your most frequently opened campus services will appear here.');
             appendMostAccessedEmptyState(list, portalT('platforms.noShortcuts', 'No personal shortcuts yet — open a platform to start building your list.'));
             return;
         }
 
         copy.textContent = portalT('platforms.quickReturn', 'Quickly return to the campus services you use most.');
-        mostAccessedPlatforms.map(resolveMostAccessedPlatform).forEach(platform => {
+        visiblePlatforms.forEach(platform => {
             const url = getPlatformSsoLaunchUrl(platform) || sanitizePlatformUrl(platform.url);
             const card = document.createElement(url ? 'a' : 'div');
             card.className = 'most-accessed-platform';
